@@ -574,6 +574,8 @@ const store = {
   get(k){ if(k in MEM) return MEM[k]; try{ return localStorage.getItem(k); }catch(e){ return null; } },
   set(k,v){ MEM[k]=v; try{ localStorage.setItem(k,v); }catch(e){} }
 };
+function el(tag, attrs, ...kids){ const e=document.createElement(tag); if(attrs) for(const k in attrs){ if(k==="class") e.className=attrs[k]; else if(k.startsWith("on")) e.addEventListener(k.slice(2),attrs[k]); else e.setAttribute(k,attrs[k]); } kids.flat().forEach(c=>{ if(c==null) return; e.append(c.nodeType?c:document.createTextNode(c)); }); return e; }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.add("hidden"),3000); }
 async function sha(text){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 const today = () => dayKey(new Date());
 const dayId = (date, sh, drvId) => date+"_"+sh+"_"+drvId;
