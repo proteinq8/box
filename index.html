@@ -621,7 +621,7 @@ function showLogin(msg){
   try{ db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
   if(location.hash==="#setup"){ $("#boot").classList.add("hidden"); $("#setup").classList.remove("hidden"); return; }
   auth.onAuthStateChanged(async u=>{
-    if(!u){ acct=null; isAdmin=false; isOwner=false; me=null; showLogin(); return; }
+    if(!u){ if(started){ location.reload(); return; } acct=null; isAdmin=false; isOwner=false; me=null; showLogin(); return; }
     isOwner = u.email===emailOf(OWNER);
     let a=null;
     try{ const s=await db.doc("accounts/"+u.uid).get(); if(s.exists) a=s.data(); }catch(e){}
