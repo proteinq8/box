@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Box Photos</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Box Photos">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F8F2; --card:#FFFFFF; --ink:#16241B; --muted:#5D6B61; --line:#DCE3D8;
+  --leaf:#2F6B45; --leaf-soft:#E3EFE5; --tomato:#D9482B; --tomato-soft:#FBE6E1; --sun:#E9A93A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#111813; --card:#1A231D; --ink:#EAF1EA; --muted:#9AAA9E; --line:#2C3830;
+    --leaf:#6BBF86; --leaf-soft:#1F3326; --tomato:#F07A5E; --tomato-soft:#3A221C; --sun:#E9B455;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111813; --card:#1A231D; --ink:#EAF1EA; --muted:#9AAA9E; --line:#2C3830;
+  --leaf:#6BBF86; --leaf-soft:#1F3326; --tomato:#F07A5E; --tomato-soft:#3A221C; --sun:#E9B455;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans","IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;font-size:17px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:640px;margin:0 auto;padding:16px 16px 96px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.brand{font-weight:700;font-size:22px;letter-spacing:-.2px}
+.brand small{display:block;font-weight:400;font-size:14px;color:var(--muted)}
+.tabs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs button{border:0;background:none;padding:8px 14px;border-radius:999px;font-weight:500;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--leaf);color:#fff}
+.hidden{display:none!important}
+.note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;color:var(--muted)}
+.who{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px;font-size:15px;color:var(--muted)}
+.who b{color:var(--ink)}
+.link{background:none;border:0;color:var(--leaf);font-weight:500;cursor:pointer;padding:6px}
+.seg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px}
+.seg button{border:2px solid var(--line);background:var(--card);border-radius:14px;padding:12px;font-weight:700;font-size:18px;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--leaf);background:var(--leaf-soft);color:var(--leaf)}
+.progress{display:flex;align-items:baseline;gap:8px;margin:6px 0 10px}
+.progress .n{font-size:40px;font-weight:700;line-height:1}
+.progress .of{color:var(--muted)}
+.bar{height:8px;background:var(--line);border-radius:8px;overflow:hidden;margin-bottom:14px}
+.bar i{display:block;height:100%;background:var(--leaf);width:0;transition:width .3s}
+.search{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);margin-bottom:10px}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;min-height:72px}
+.row .info{flex:1;min-width:0}
+.row .name{font-weight:700;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sub{font-size:14px;color:var(--muted)}
+.row.done{border-color:transparent;background:var(--leaf-soft)}
+.row.done .sub{color:var(--leaf);font-weight:500}
+.shoot{flex:none;border:0;background:var(--tomato);color:#fff;font-weight:700;border-radius:14px;padding:12px 16px;min-width:92px;cursor:pointer;font-size:16px}
+.row.done .shoot{background:transparent;color:var(--leaf);border:1px solid var(--leaf);padding:10px 12px;min-width:auto;font-size:14px}
+.thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none;background:var(--line)}
+.pick{display:flex;flex-direction:column;gap:8px}
+.pick button{text-align:start;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-size:18px;font-weight:500;cursor:pointer}
+h2{font-size:19px;margin:18px 0 10px}
+.sub-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}
+.sub-tabs button{flex:none;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:500}
+.sub-tabs button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px}
+.filters .full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+input.in,select.in{padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);width:100%;font-size:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;padding:0;text-align:start}
+.tile .ph{aspect-ratio:3/4;background:var(--line);width:100%;object-fit:cover;display:block}
+.tile .t{padding:8px 10px;font-size:14px}
+.tile .t b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.missing{background:var(--tomato-soft);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.missing b{color:var(--tomato)}
+.missing ul{margin:6px 0 0;padding-inline-start:18px;font-size:15px}
+.btn{border:0;background:var(--leaf);color:#fff;font-weight:700;border-radius:12px;padding:12px 16px;cursor:pointer;font-size:16px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--tomato);border:1px solid var(--tomato)}
+.mini{border:0;background:none;color:var(--tomato);cursor:pointer;padding:8px;font-size:14px}
+.form{display:grid;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+.form .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.count{color:var(--muted);font-size:14px;margin-bottom:8px}
+
+/* camera */
+.cam{position:fixed;top:0;right:0;bottom:0;left:0;background:#000;z-index:50;display:flex;flex-direction:column;color:#fff}
+.cam-top{padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cam-top .who2{font-weight:700;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cam-top button{background:rgba(255,255,255,.15);border:0;color:#fff;border-radius:999px;padding:8px 14px;cursor:pointer}
+.cam-view{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.cam-view video,.cam-view img{width:100%;height:100%;object-fit:contain}
+.clock{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(0,0,0,.62);padding:10px 12px;border-radius:12px;font-size:14px;line-height:1.45}
+.clock .big{font-size:20px;font-weight:700}
+.clock .time{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:700;color:#FFD27A}
+.meals{display:flex;flex-wrap:wrap;gap:6px}
+.meals label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:15px;cursor:pointer;background:var(--paper)}
+.meals input{accent-color:var(--leaf);width:18px;height:18px}
+.cam-bottom{padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;justify-content:center;align-items:center;gap:14px}
+.shutter{width:78px;height:78px;border-radius:50%;border:5px solid #fff;background:var(--tomato);cursor:pointer}
+.shutter:active{transform:scale(.94)}
+.cam-bottom .btn{flex:1;max-width:220px;padding:16px}
+.cam-msg{padding:24px;text-align:center;line-height:1.7}
+.err{color:var(--tomato);font-size:15px;font-weight:500}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 20px);background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:12px;z-index:60;font-weight:500;max-width:90%}
+.viewer{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.92);z-index:55;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px)}
+.viewer img{max-width:100%;max-height:82vh;border-radius:8px}
+.viewer p{color:#fff;margin:10px 0 0;text-align:center}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+.boxin{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:16px}
+.boxin input{font-size:28px;font-weight:700;padding:12px 16px;border-radius:14px;border:2px solid var(--line);background:var(--card);width:100%;min-width:0;letter-spacing:1px}
+.boxin input:focus{border-color:var(--leaf);outline:none}
+.boxin .shoot{font-size:18px;padding:0 20px}
+.boxin .shoot:disabled{opacity:.4}
+.boxno{flex:none;min-width:64px;height:52px;border-radius:12px;background:var(--leaf-soft);color:var(--leaf);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;padding:0 8px}
+.fridge{display:flex;align-items:center;gap:12px;border-radius:16px;padding:14px;margin-bottom:16px;border:2px solid var(--tomato);background:var(--tomato-soft)}
+.fridge.ok{border-color:transparent;background:var(--leaf-soft)}
+.fridge .ic{font-size:30px;flex:none}
+.fridge .info{flex:1;min-width:0}
+.fridge .name{font-weight:700;font-size:18px}
+.fridge .sub{font-size:14px;color:var(--muted)}
+.fridge.ok .sub{color:var(--leaf);font-weight:500}
+.fridge .shoot{font-size:15px}
+.fridge.ok .shoot{background:transparent;color:var(--leaf);border:1px solid var(--leaf)}
+.ftable{width:100%;border-collapse:collapse;font-size:15px;background:var(--card);border-radius:12px;overflow:hidden}
+.ftable th,.ftable td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+.ftable th{font-size:13px;color:var(--muted);font-weight:500}
+.fok{color:var(--leaf);font-weight:700;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+.fno{color:var(--tomato);font-weight:700}
+.tablewrap{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:12px}
+.alert{background:var(--tomato);color:#fff;border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.alert b{display:block;font-size:17px;margin-bottom:4px}
+.alert ul{margin:0;padding-left:18px;font-size:15px}
+.dcard.late{border:2px solid var(--tomato)}
+.dot{display:inline-block;min-width:20px;height:20px;border-radius:10px;background:var(--tomato);color:#fff;font-size:12px;line-height:20px;text-align:center;margin-left:6px;padding:0 5px}
+.av{flex:none;border-radius:50%;object-fit:cover;background:var(--leaf-soft);display:inline-flex;align-items:center;justify-content:center;color:var(--leaf);font-weight:700;overflow:hidden}
+.av.s{width:44px;height:44px;font-size:16px}
+.av.m{width:64px;height:64px;font-size:20px}
+.av.l{width:96px;height:96px;font-size:28px}
+.whoav{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+.selfie{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 16px}
+.selfie .big{font-size:56px}
+.dcard{align-items:flex-start}
+.newdel{width:100%;border:0;border-radius:18px;background:var(--tomato);color:#fff;font-weight:700;font-size:22px;padding:22px 16px;cursor:pointer;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:10px}
+.newdel:active{transform:scale(.98)}
+.hint{font-size:14px;color:var(--muted);text-align:center;margin:0 0 16px}
+.pair{display:flex;gap:6px;flex:none}
+.pair img{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--line);cursor:pointer}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:10px}
+.dtile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.dtile .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2px}
+.dtile .two button{padding:0;border:0;background:var(--line);cursor:pointer;position:relative}
+.dtile .two img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.dtile .two span{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 6px;border-radius:6px}
+.dtile .t{padding:8px 10px;font-size:14px}
+.dtile .t b{display:block;font-size:15px}
+.prompt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:14px}
+.prompt .stepn{font-size:16px;font-weight:700;letter-spacing:.5px;color:#FFD27A}
+.prompt .ico{font-size:84px;line-height:1}
+.prompt .what{font-size:30px;font-weight:700;line-height:1.2;max-width:340px}
+.prompt .det{font-size:17px;color:rgba(255,255,255,.75);max-width:320px}
+.prompt .go{margin-top:10px;width:100%;max-width:320px;border:0;border-radius:18px;background:var(--tomato);color:#fff;font-size:22px;font-weight:700;padding:20px;cursor:pointer}
+.steps{display:flex;gap:8px}
+.steps i{width:38px;height:6px;border-radius:3px;background:rgba(255,255,255,.25)}
+.steps i.on{background:#FFD27A}
+.dcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:10px}
+.dcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.dcard .nm{font-weight:700;font-size:17px}
+.dcard .bx{font-size:28px;font-weight:700;line-height:1}
+.dcard .bx small{font-size:14px;font-weight:400;color:var(--muted)}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font-size:13px;font-weight:500;padding:3px 8px;border-radius:999px}
+.badge.ok{background:var(--leaf-soft);color:var(--leaf)}
+.badge.no{background:var(--tomato-soft);color:var(--tomato)}
+.dhead{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.dhead h2{margin:0;flex:1}
+.ftiles{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-bottom:8px}
+.ftile{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;padding:0;text-align:left;cursor:pointer}
+.ftile .ph{aspect-ratio:3/4;width:100%;object-fit:cover;display:block;background:var(--line)}
+.ftile .t{padding:8px 10px;font-size:14px}
+.ftile.no{border:2px dashed var(--tomato);background:var(--tomato-soft);cursor:default;display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:3/4.6;color:var(--tomato);font-weight:700;text-align:center;padding:10px}
+.drvcounts{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.drvcounts div{display:flex;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
+/* vertical scroll only */
+html,body{overflow-x:hidden;max-width:100%;overscroll-behavior-x:none}
+.wrap{overflow-x:hidden;overflow-x:clip}
+img{max-width:100%}
+.grid>*,.dgrid>*,.dcards>*,.ftiles>*,.filters>*,.list>*,.form>*,.two>*{min-width:0}
+input.in,select.in{min-width:0;max-width:100%;display:block}
+input[type="date"].in,input[type="time"].in{-webkit-appearance:none;appearance:none;min-height:46px;text-align:left}
+.dhead h2{min-width:0;overflow:hidden}
+.seg button.locked{opacity:.45;cursor:not-allowed;font-weight:500}
+.nodel{display:none!important}
+.fridge{padding:22px 16px}
+.fridge .name{font-size:20px}
+.ztable td{vertical-align:middle}
+.ztable select{padding:6px 4px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-size:14px;max-width:96px}
+.ztable .dn{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;cursor:pointer;font-weight:500;text-align:left}
+.ztable .dn .av.s{width:34px;height:34px;font-size:13px}
+.pend{color:var(--muted)}
+.wa{background:#fff;color:#1E7D45;font-weight:700;font-size:14px;padding:7px 12px;border-radius:999px;text-decoration:none;flex:none}
+.wbadge{display:inline-block;margin-left:6px;font-size:12px;font-weight:700;padding:1px 6px;border-radius:999px;background:var(--tomato-soft);color:var(--tomato)}
+.wbadge.max{background:var(--tomato);color:#fff}
+.wcard{border-radius:16px;padding:14px;margin-bottom:12px;background:var(--tomato-soft);color:var(--tomato);border:2px solid var(--tomato)}
+.wcard.max{background:var(--tomato);color:#fff}
+.wcard .wn{font-weight:700;font-size:17px}
+.wcard .wl{font-size:15px;margin-top:4px;font-weight:500}
+.wcard .wd{font-size:13px;margin-top:8px;white-space:pre-line;opacity:.85}
+@supports not (aspect-ratio:1){.tile .ph,.ftile .ph,.dtile .two img{height:220px}}
+.acc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:8px}
+.acc.off{opacity:.55}
+.acc-top{display:flex;align-items:center;gap:10px;min-width:0}
+.acc-info{flex:1;min-width:0}
+.acc-name{font-weight:700;font-size:17px;overflow-wrap:anywhere}
+.acc-sub{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.acc-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.acbtn{border:1px solid var(--line);background:var(--paper);color:var(--leaf);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap}
+.acbtn.red{color:var(--tomato)}
+.sheet{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.45);z-index:70;display:flex;align-items:flex-end;justify-content:center}
+.sheet-box{background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 18px);max-height:92vh;overflow-y:auto}
+.dedamt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:4px}
+.dedamt button{border:2px solid var(--line);background:var(--paper);border-radius:12px;padding:10px 4px;font-weight:700;cursor:pointer}
+.dedamt button[aria-pressed="true"]{border-color:var(--tomato);color:var(--tomato);background:var(--tomato-soft)}
+.dedquick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dedquick button{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 10px;font-size:13px;cursor:pointer}
+textarea.in{resize:vertical;font-family:inherit;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);width:100%;font-size:16px;color:var(--ink)}
+.dedbtn{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:40;border:0;border-radius:999px;background:var(--ink);color:var(--paper);font-weight:700;padding:12px 18px;box-shadow:0 4px 14px rgba(0,0,0,.2);cursor:pointer}
+.wlist{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+.wchip{display:inline-flex;align-items:center;gap:4px;background:var(--tomato-soft);color:var(--tomato);border-radius:999px;padding:4px 4px 4px 10px;font-size:13px;font-weight:500;margin:0 6px 6px 0}
+.wx{border:0;background:var(--tomato);color:#fff;border-radius:50%;width:24px;height:24px;font-size:12px;cursor:pointer;line-height:24px;padding:0}
+.wcard .wd{white-space:normal}
+.wrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0}
+.wcard.max .wx{background:#fff;color:var(--tomato)}
+.wreset{margin-top:10px;width:100%;border:1px solid currentColor;background:transparent;color:inherit;border-radius:12px;padding:10px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Box Photos<small id="today"></small></div>
+    <nav class="tabs hidden" id="mainTabs">
+      <button data-tab="driver" aria-pressed="true">Driver</button>
+      <button data-tab="admin" aria-pressed="false" id="adminTabBtn">Admin</button>
+    </nav>
+  </header>
+
+  <div id="boot" class="note">Loading…</div>
+  <section id="setup" class="hidden">
+    <h2>First-time setup</h2>
+    <p class="note">Owner only. This creates all driver and admin logins in Firebase. Do it once.</p>
+    <div class="form">
+      <input class="in" id="sPass" type="password" placeholder="Owner password (amkg7)" autocomplete="current-password">
+      <button class="btn" id="sBtn">Run setup</button>
+      <div class="count" id="sOut" style="white-space:pre-line"></div>
+    </div>
+  </section>
+
+  <section id="driver" class="hidden">
+    <div id="pickDriver" class="hidden">
+      <div id="ownerPick" class="hidden" style="margin-bottom:16px"><h2>Open any driver (owner)</h2><div class="pick" id="ownerPickList"></div></div>
+      <h2 id="lTitle">Sign in</h2>
+      <div class="form">
+        <input class="in" id="lUser" placeholder="Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <input class="in" id="lPass" type="password" placeholder="Password" autocomplete="current-password">
+        <button class="btn" id="lBtn">Sign in</button>
+        <div class="err hidden" id="lErr"></div>
+      </div>
+    </div>
+    <div id="needSelfie" class="hidden">
+      <div class="selfie">
+        <div class="big" aria-hidden="true">🤳</div>
+        <h2>Take your profile photo</h2>
+        <p class="count">One time only. The office uses it to know who you are.</p>
+        <button class="shoot" id="selfieBtn" style="font-size:18px;padding:14px 24px">Take selfie</button>
+      </div>
+    </div>
+    <div id="driverMain" class="hidden">
+      <div class="who"><button class="whoav" id="myAvBtn" aria-label="Change profile photo"><span id="myAv"></span><span>Signed in as <b id="dName"></b></span></button><button class="link" id="switchDriver">Sign out</button></div>
+      <div class="seg" id="shiftSeg">
+        <button data-shift="am" aria-pressed="true">Dawn</button>
+        <button data-shift="pm" aria-pressed="false">Late morning</button>
+      </div>
+      <div class="progress nodel"><span class="n" id="doneN">0</span><span class="of" id="ofN">of 300 deliveries today</span></div>
+      <div class="bar nodel"><i id="barFill"></i></div>
+      <div class="wcard hidden" id="myWarn"></div>
+      <div class="fridge" id="fridgeCard">
+        <span class="ic" aria-hidden="true">🌡️</span>
+        <div class="info"><div class="name" id="fridgeTitle">Fridge temperature</div><div class="sub" id="fridgeSub">Not done yet</div></div>
+        <button class="shoot" id="fridgeBtn">Take photo</button>
+      </div>
+      <button class="newdel nodel" id="newDel"><span aria-hidden="true">📦</span> New delivery</button>
+      <p class="hint nodel">2 photos: the box number, then who you gave it to or where you left it</p>
+      <h2 class="nodel" id="listTitle">Photos this shift</h2>
+      <div class="list nodel" id="dList"></div>
+    </div>
+  </section>
+
+  <section id="admin" class="hidden">
+    <div id="adminLogin" class="hidden" style="display:none!important">
+      <h2>Admin sign in</h2>
+      <div class="form">
+        <input class="in" id="aUser" placeholder="Admin username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <input class="in" id="aPass" type="password" placeholder="Password" autocomplete="current-password">
+        <button class="btn" id="aBtn">Sign in</button>
+        <div class="err hidden" id="aErr"></div>
+      </div>
+    </div>
+    <div id="adminMain" class="hidden">
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div>
+    <div id="alertBox"></div>
+    <button class="dedbtn" id="dedFab">💸 Deduction</button>
+    <div class="sub-tabs" id="adminTabs">
+      <button data-sub="today" aria-pressed="true">By driver</button>
+      <button class="nodel" data-sub="deliv" aria-pressed="false">All photos</button>
+      <button data-sub="drv" aria-pressed="false">Accounts</button>
+      <button data-sub="clean" aria-pressed="false">Cleanup</button>
+    </div>
+
+    <div id="sub-today">
+      <label class="f" style="margin-bottom:12px">Date<input class="in" type="date" id="tDate"></label>
+      <div id="tList">
+        <div class="count" id="tTimes" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"></div>
+        <div class="tablewrap"><table class="ftable ztable"><thead><tr><th>Driver</th><th>Zone</th><th>Dawn</th><th>Late AM</th></tr></thead><tbody id="tRows"></tbody></table></div>
+        <div class="count" id="tOff"></div>
+      </div>
+      <div id="tDetail" class="hidden">
+        <div class="dhead"><button class="btn ghost" id="tBack">Back</button><h2 id="tName"></h2></div>
+        <div class="count" id="tSum"></div>
+        <h2>Fridge temperature</h2>
+        <div class="ftiles" id="tFridge"></div>
+        <h2 class="nodel" id="tAmT">Dawn deliveries</h2><div class="dgrid nodel" id="tAm"></div>
+        <h2 class="nodel" id="tPmT">Late morning deliveries</h2><div class="dgrid nodel" id="tPm"></div>
+      </div>
+    </div>
+
+    <div id="sub-deliv" class="hidden">
+      <div class="filters">
+        <label class="f">Date<input class="in" type="date" id="aDate"></label>
+        <label class="f">Shift<select class="in" id="aShift"><option value="">All</option><option value="am">Dawn</option><option value="pm">Late morning</option></select></label>
+        <label class="f">Driver<select class="in" id="aDriver"><option value="">All drivers</option></select></label>
+
+      </div>
+      <h2>Fridge temperature</h2>
+      <div class="tablewrap"><table class="ftable"><thead><tr><th>Driver</th><th>Dawn</th><th>Late morning</th></tr></thead><tbody id="aFridge"></tbody></table></div>
+      <h2 class="nodel">Deliveries</h2>
+      <div class="drvcounts nodel" id="aCounts"></div>
+      <div class="count" id="aCount"></div>
+      <div class="dgrid" id="aGrid"></div>
+    </div>
+
+    <div id="sub-drv" class="hidden">
+      <div class="form">
+        <input class="in" id="drvName" placeholder="Driver full name">
+        <div class="two">
+          <input class="in" id="drvUser" placeholder="Username" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <input class="in" id="drvPass" placeholder="Password (min 6)" autocomplete="new-password">
+        </div>
+        <button class="btn" id="drvAdd">Add driver</button>
+      </div>
+      <div class="list" id="drvList"></div>
+      <h2>Zones</h2>
+      <div class="form">
+        <label class="f">Number of delivery zones<input class="in" type="number" id="zCount" value="12" min="1" max="99" inputmode="numeric"></label>
+        <button class="btn ghost" id="zSave">Save zones</button>
+      </div>
+      <h2>Shift change time</h2>
+      <div class="form">
+        <p class="count" style="margin:0">Before this time drivers can only use Dawn. From this time they can only use Late morning.</p>
+        <label class="f">Late morning starts at<input class="in" type="time" id="swTime" value="07:00"></label>
+        <button class="btn ghost" id="swSave">Save shift time</button>
+      </div>
+      <h2>Fridge alert times</h2>
+      <div class="form">
+        <p class="count" style="margin:0">You get an alert if an active driver has no fridge photo by these times.</p>
+        <div class="two">
+          <label class="f">Dawn by<input class="in" type="time" id="alAm" value="04:00"></label>
+          <label class="f">Late morning by<input class="in" type="time" id="alPm" value="13:00"></label>
+        </div>
+        <button class="btn ghost" id="alSave">Save alert times</button>
+      </div>
+      <h2>Admin password</h2>
+      <div class="form">
+        <input class="in" id="aNewPass" type="password" placeholder="New admin password" autocomplete="new-password">
+        <button class="btn ghost" id="aChange">Change my password</button>
+      </div>
+      <div id="adminAccts"></div>
+    </div>
+
+    <div id="sub-clean" class="hidden">
+      <p class="note">Storage on this page is limited. Delete old fridge photos from time to time so new photos keep saving.</p>
+      <div class="form">
+        <label class="f">Delete photos older than (days)<input class="in" type="number" id="cleanDays" value="30" min="1"></label>
+        <button class="btn danger" id="cleanBtn">Delete old photos</button>
+        <div class="count" id="cleanOut"></div>
+      </div>
+    </div>
+      </div>
+  </section>
+</div>
+
+<div class="cam hidden" id="cam">
+  <div class="cam-top"><span class="who2" id="camWho"></span><button id="camClose">Cancel</button></div>
+  <div class="prompt hidden" id="camPrompt">
+    <div class="steps" id="pSteps"><i></i><i></i></div>
+    <div class="stepn" id="pStep"></div>
+    <div class="ico" id="pIco" aria-hidden="true"></div>
+    <div class="what" id="pWhat"></div>
+    <div class="det" id="pDet"></div>
+    <button class="go" id="pGo">📷 Open camera</button>
+  </div>
+  <div class="cam-view" id="camView"><img id="shot" alt="Photo"></div>
+  <div class="cam-bottom" id="camBtns">
+    <button class="btn ghost" id="retake" style="color:#fff;border-color:rgba(255,255,255,.4)">Retake</button>
+    <button class="btn" id="saveShot">Save</button>
+  </div>
+</div>
+<input type="file" id="selfieCam" accept="image/*" capture="user" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
+<input type="file" id="nativeCam" accept="image/*" capture="environment" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
+<div class="viewer hidden" id="viewer"><img id="vImg" alt=""><p id="vTxt"></p></div>
+<div class="sheet hidden" id="dedSheet" role="dialog" aria-modal="true" aria-labelledby="dedTitle">
+  <div class="sheet-box">
+    <h2 id="dedTitle" style="margin-top:0">Salary deduction</h2>
+    <div class="count" id="dedWho"></div>
+    <label class="f">Driver<select class="in" id="dedDrv"></select></label>
+    <div class="f" style="margin-top:10px">Amount</div>
+    <div class="dedamt" id="dedAmt">
+      <button data-v="half" aria-pressed="true">Half day</button>
+      <button data-v="full" aria-pressed="false">Full day</button>
+      <button data-v="other" aria-pressed="false">Other</button>
+    </div>
+    <input class="in hidden" id="dedOther" placeholder="e.g. 2 days, 5 KD" style="margin-top:8px">
+    <label class="f" style="margin-top:10px">Reason<textarea class="in" id="dedReason" rows="3" placeholder="e.g. Late delivery to customer in E4"></textarea></label>
+    <div class="dedquick" id="dedQuick"></div>
+    <details style="margin-top:12px"><summary class="count" style="cursor:pointer">WhatsApp didn't open? Copy the message</summary>
+      <textarea class="in" id="dedPreview" rows="8" readonly style="margin-top:6px;font-size:13px"></textarea>
+      <button class="btn ghost" id="dedCopy" type="button" style="margin-top:6px;width:100%">Copy message</button>
+      <p class="count" style="margin:6px 0 0">Then open WhatsApp, find Layal (+965 9224 5310) and paste.</p>
+    </details>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn ghost" id="dedCancel" style="flex:1">Cancel</button>
+      <a class="btn" id="dedSend" href="https://api.whatsapp.com/send?phone=96592245310" target="_blank" rel="noopener" style="flex:2;background:#1E7D45;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center">Send to Layal on WhatsApp</a>
+    </div>
+  </div>
+</div>
+<div class="toast hidden" id="toast"></div>
+
+<script>
+(function(){ if(!Element.prototype.replaceChildren){ Element.prototype.replaceChildren=function(){ while(this.firstChild) this.removeChild(this.firstChild); for(var i=0;i<arguments.length;i++){ var a=arguments[i]; this.appendChild(a&&a.nodeType?a:document.createTextNode(a)); } }; } })();
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+const LIMIT = 300;
+const $ = s => document.querySelector(s);
+const hm12 = t => { const [h,m]=(t||"00:00").split(":").map(Number); return ((h%12)||12)+":"+String(m).padStart(2,"0")+(h<12?" AM":" PM"); };
+const isLate = (at, sh) => { const d=new Date(at), [h,m]=(alertTimes[sh]||"23:59").split(":").map(Number); return d.getHours()*60+d.getMinutes() > h*60+m; };
+const zoneList = () => Array.from({length:Math.max(1,zoneCount)},(_,i)=>"E"+(i+1));
+const zoneNum = d => d.zone ? parseInt(d.zone.replace(/\D/g,""))||999 : 1000;
+const MAXW = 5;
+const warnsOf = d => Array.isArray(d.warnings) ? d.warnings : [];
+function warnMsg(d, n, date, sh){
+  const en = sh==="am" ? "DAWN" : "LATE MORNING", ar = sh==="am" ? "الفجر" : "قبل الظهر";
+  const last = n>=MAXW;
+  return "⚠️ Warning "+n+"/"+MAXW+" - إنذار "+n+"/"+MAXW+"\n"+d.name+(d.zone?" ("+d.zone+")":"")+" - "+date+"\n\n"
+    +"You did not take the "+en+" fridge temperature photo on time.\n"
+    +(last ? "This is your 5th warning. A salary deduction will be applied." : (MAXW-n)+" warning"+(MAXW-n>1?"s":"")+" left before a salary deduction.")
+    +"\n\n"
+    +"لم تقم بتصوير حرارة البراد ("+ar+") في الوقت المحدد.\n"
+    +(last ? "هذا الإنذار الخامس، سيتم الخصم من الراتب." : "باقي "+(MAXW-n)+" قبل الخصم من الراتب.");
+}
+function warnLink(d, date, sh){
+  const key=date+"_"+sh, ws=warnsOf(d), done=ws.includes(key);
+  const n = done ? ws.indexOf(key)+1 : ws.length+1;
+  return el("a",{class:"wa",href:waLink(d.phone, warnMsg(d,n,date,sh)),target:"_blank",rel:"noopener",
+    onclick:()=>{ if(!done) saveDrivers(drivers.map(x=>x.id===d.id?{...x,warnings:[...warnsOf(x),key]}:x)).catch(()=>toast("Warning not saved. Only the page owner or editors can save it.")); }},
+    (done?"Resend ":"Warn ")+n+"/"+MAXW);
+}
+const HR = {name:"Layal M. Ghanem", phone:"96592245310"};
+const AMT = {half:["HALF DAY","نصف يوم"], full:["FULL DAY","يوم كامل"]};
+const QUICK = ["No fridge photo / لم يصور البراد","Late delivery / تأخير بالتوصيل","Wrong delivery / توصيل خاطئ","Customer complaint / شكوى زبون","Absent / غياب","Damaged box / بوكس تالف"];
+let dedAmt="half";
+function openDeduction(drvId, reason){
+  const sel=$("#dedDrv");
+  sel.replaceChildren(...drivers.filter(d=>d.active!==false||d.id===drvId).sort((a,b)=>zoneNum(a)-zoneNum(b)).map(d=>el("option",{value:d.id},(d.zone?d.zone+"  ":"")+d.name)));
+  if(drvId) sel.value=drvId;
+  dedAmt="half"; document.querySelectorAll("#dedAmt button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v==="half"));
+  $("#dedOther").classList.add("hidden"); $("#dedOther").value="";
+  $("#dedReason").value=reason||"";
+  $("#dedWho").textContent="Opens WhatsApp to "+HR.name+" (+"+HR.phone+") with the message ready.";
+  $("#dedQuick").replaceChildren(...QUICK.map(q=>el("button",{type:"button",onclick:()=>{ $("#dedReason").value=q; }},q)));
+  $("#dedSheet").classList.remove("hidden");
+  dedRefresh();
+}
+$("#dedAmt").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; dedAmt=b.dataset.v;
+  document.querySelectorAll("#dedAmt button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("#dedOther").classList.toggle("hidden",dedAmt!=="other"); if(dedAmt==="other") $("#dedOther").focus(); });
+$("#dedFab").onclick=()=>openDeduction();
+$("#dedCancel").onclick=()=>$("#dedSheet").classList.add("hidden");
+$("#dedSheet").addEventListener("click",e=>{ if(e.target.id==="dedSheet") $("#dedSheet").classList.add("hidden"); });
+function dedBuild(){
+  const d=drivers.find(x=>x.id===$("#dedDrv").value), reason=$("#dedReason").value.trim();
+  let en,ar; if(dedAmt==="other"){ const o=$("#dedOther").value.trim(); en=o; ar=o; } else { [en,ar]=AMT[dedAmt]; }
+  if(!d) return {err:"Choose a driver."};
+  if(!en) return {err:"Write the amount."};
+  if(!reason) return {err:"Write the reason."};
+  const date=today();
+  const msg="Salary deduction - خصم من الراتب\n\n"
+    +"Hi "+HR.name+",\nPlease apply a "+en+" deduction for:\n"+d.name+(d.zone?" ("+d.zone+")":"")+(d.phone?" +"+d.phone:"")+"\nDate: "+date+"\nReason: "+reason+"\n\n"
+    +"مرحبا "+HR.name+"،\nالرجاء خصم "+ar+" من راتب:\n"+d.name+(d.zone?" ("+d.zone+")":"")+"\nالتاريخ: "+date+"\nالسبب: "+reason;
+  return {msg};
+}
+function dedRefresh(){ const r=dedBuild(); $("#dedPreview").value=r.msg||r.err; $("#dedSend").href=waLink(HR.phone, r.msg||""); }
+["#dedDrv","#dedReason","#dedOther"].forEach(x=>{ $(x).addEventListener("input",dedRefresh); $(x).addEventListener("change",dedRefresh); });
+$("#dedAmt").addEventListener("click",()=>setTimeout(dedRefresh,0));
+$("#dedQuick").addEventListener("click",()=>setTimeout(dedRefresh,0));
+$("#dedSend").addEventListener("click",e=>{
+  const r=dedBuild();
+  if(r.err){ e.preventDefault(); toast(r.err); return; }
+  $("#dedSend").href=waLink(HR.phone, r.msg);
+  setTimeout(()=>$("#dedSheet").classList.add("hidden"),800);
+});
+$("#dedCopy").onclick=async ()=>{
+  const t=$("#dedPreview"); let ok=false;
+  try{ await navigator.clipboard.writeText(t.value); ok=true; }catch(e){}
+  if(!ok){ t.removeAttribute("readonly"); t.focus(); t.select(); t.setSelectionRange(0,99999); try{ ok=document.execCommand("copy"); }catch(e){} t.setAttribute("readonly",""); }
+  toast(ok?"Message copied. Paste it in WhatsApp to Layal.":"Select the text and copy it.");
+};
+function deductMsg(d, date, sh, n){
+  const en = sh==="am" ? "Dawn" : "Late morning", ar = sh==="am" ? "الفجر" : "قبل الظهر";
+  return "Salary deduction - خصم من الراتب\n\n"
+    +"Hi "+HR.name+",\n"
+    +"Please apply a HALF DAY deduction for:\n"
+    +d.name+(d.zone?" ("+d.zone+")":"")+(d.phone?" +"+d.phone:"")+"\n"
+    +"Reason: "+n+" warnings for not taking the fridge temperature photo. Last one: "+date+" "+en+".\n\n"
+    +"مرحبا "+HR.name+"،\n"
+    +"الرجاء خصم نصف يوم من راتب:\n"
+    +d.name+(d.zone?" ("+d.zone+")":"")+"\n"
+    +"السبب: "+n+" إنذارات لعدم تصوير حرارة البراد. آخر إنذار: "+date+" "+ar+".";
+}
+function deductLink(d, date, sh, n){
+  return el("a",{class:"wa",style:"background:var(--ink);color:var(--paper)",href:waLink(HR.phone, deductMsg(d,date,sh,n)),target:"_blank",rel:"noopener"},"Deduction → Layal");
+}
+function warnBadge(d){
+  const n=warnsOf(d).length; if(!n) return null;
+  return el("span",{class:"wbadge"+(n>=MAXW?" max":""),title:n+" warnings"},"⚠️ "+n+"/"+MAXW);
+}
+// api.whatsapp.com keeps the prefilled text more reliably than wa.me when opened from inside apps
+const waLink = (phone, text) => "https://api.whatsapp.com/send?"+(phone?"phone="+phone+"&":"")+"text="+encodeURIComponent(text||"");
+// also copy the message, so it can be pasted if WhatsApp opens the chat empty
+function copyText(t){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).catch(()=>{}); return; } }catch(e){}
+  try{ const ta=document.createElement("textarea"); ta.value=t; ta.setAttribute("readonly",""); ta.style.cssText="position:fixed;left:-9999px;top:0"; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,999999); document.execCommand("copy"); ta.remove(); }catch(e){}
+}
+document.addEventListener("click", e=>{
+  const a=e.target.closest && e.target.closest('a[href*="whatsapp.com/send"]'); if(!a) return;
+  try{ const t=new URL(a.href).searchParams.get("text"); if(t){ copyText(t); toast("Message copied too. If the chat opens empty, tap and hold, then Paste."); } }catch(err){}
+}, true);
+const SHIFT = {am:"Dawn", pm:"Late morning"};
+const pad = n => String(n).padStart(2,"0");
+const dayKey = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const timeTxt = ms => new Date(ms).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+const stampTxt = ms => { const d=new Date(ms); return dayKey(d)+"  "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); };
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const MEM={};
+const store = {
+  get(k){ if(k in MEM) return MEM[k]; try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ MEM[k]=v; try{ localStorage.setItem(k,v); }catch(e){} }
+};
+async function sha(text){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+const today = () => dayKey(new Date());
+const dayId = (date, sh, drvId) => date+"_"+sh+"_"+drvId;
+const photoId = (date, sh, drvId, box) => dayId(date,sh,drvId)+"_"+box;
+
+let profiles=null;
+let zoneCount=12;
+let db=null, isAdmin=false, isOwner=false, drivers=[], adminCred=null, admins=[], alertTimes={am:"04:00",pm:"13:00"}, shiftSwitch="07:00";
+let myDays={};          // {am:{entries}, pm:{entries}} for signed-in driver today
+let adminDays=[];       // day docs for admin date
+let me = store.get("driverId");
+const switchMin = () => { const [h,m]=(shiftSwitch||"09:00").split(":").map(Number); return h*60+m; };
+const shiftNow = () => { const n=new Date(); return n.getHours()*60+n.getMinutes() < switchMin() ? "am" : "pm"; };
+const switchTxt = () => { const [h,m]=(shiftSwitch||"09:00").split(":").map(Number); return ((h%12)||12)+":"+String(m).padStart(2,"0")+(h<12?" AM":" PM"); };
+let shift = shiftNow();
+$("#today").textContent = new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+
+/* ---------- firebase ---------- */
+const CFG={apiKey:"AIzaSyD_Rh6fUiGFEVPgU6YTyocXjfdzOORwoyY",authDomain:"proteinq8-box.firebaseapp.com",projectId:"proteinq8-box",storageBucket:"proteinq8-box.firebasestorage.app",messagingSenderId:"957841978002",appId:"1:957841978002:web:0692e6976bf966d9876c4b"};
+const DOMAIN="proteinq8-box.app", OWNER="amkg7";
+const emailOf = u => u+"@"+DOMAIN;
+let auth=null, acct=null, started=false;
+const creatorApp = () => { try{ return firebase.app("creator"); }catch(e){ const a=firebase.initializeApp(CFG,"creator"); a.auth().setPersistence(firebase.auth.Auth.Persistence.NONE); return a; } };
+// create (or reuse) a Firebase login without signing out the current user
+async function makeLogin(email, pass){
+  const ca=creatorApp().auth();
+  let cred;
+  try{ cred=await ca.createUserWithEmailAndPassword(email, pass); }
+  catch(e){ if(e.code==="auth/email-already-in-use") cred=await ca.signInWithEmailAndPassword(email, pass); else throw e; }
+  const uid=cred.user.uid; await ca.signOut(); return uid;
+}
+function showLogin(msg){
+  $("#boot").classList.add("hidden"); $("#mainTabs").classList.add("hidden");
+  $("#admin").classList.add("hidden"); $("#driver").classList.remove("hidden");
+  $("#pickDriver").classList.remove("hidden"); $("#driverMain").classList.add("hidden"); $("#needSelfie").classList.add("hidden");
+  $("#ownerPick").classList.add("hidden"); $("#lTitle").classList.remove("hidden"); $("#lTitle").nextElementSibling.classList.remove("hidden");
+  if(msg){ $("#lErr").textContent=msg; $("#lErr").classList.remove("hidden"); }
+}
+(function(){
+  if(!window.firebase){ $("#boot").textContent="Cannot load. Check your internet and refresh the page."; return; }
+  firebase.initializeApp(CFG);
+  auth=firebase.auth(); db=firebase.firestore();
+  try{ db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+  if(location.hash==="#setup"){ $("#boot").classList.add("hidden"); $("#setup").classList.remove("hidden"); return; }
+  auth.onAuthStateChanged(async u=>{
+    if(!u){ acct=null; isAdmin=false; isOwner=false; me=null; showLogin(); return; }
+    isOwner = u.email===emailOf(OWNER);
+    let a=null;
+    try{ const s=await db.doc("accounts/"+u.uid).get(); if(s.exists) a=s.data(); }catch(e){}
+    if(!a && isOwner) a={role:"owner",username:OWNER};
+    if(!a){ await auth.signOut(); showLogin("This login is no longer active. Ask the office for a new password."); return; }
+    acct=a; isAdmin = a.role==="admin" || a.role==="owner" || isOwner;
+    adminCred={username:a.username||OWNER};
+    me = a.role==="driver" ? a.driverId : null;
+    $("#boot").classList.add("hidden"); $("#lErr").classList.add("hidden");
+    // tabs: drivers see Driver only, admins see Admin only, owner sees both
+    $("#mainTabs").classList.toggle("hidden", !isOwner);
+    $("#adminTabBtn").classList.toggle("hidden", !isAdmin);
+    start();
+    showTab(isAdmin?"admin":"driver");
+  });
+})();
+function start(){
+  if(started){ renderDriver(); renderAdminGate(); if(isAdmin){ renderDriverOptions(); renderDrivers(); subAdmin(); } return; }
+  started=true;
+  db.collection("profiles").onSnapshot(s=>{ profiles={}; s.docs.forEach(d=>profiles[d.id]=d.data().img); renderDriver(); if(isAdmin){ renderAdminGate(); renderDrivers(); renderAdmin(); } }, ()=>{});
+  db.doc("data/settings").onSnapshot(s=>{
+    const x=s.exists?s.data():{}; drivers=x.drivers||[]; admins=x.admins||[];
+    alertTimes=Object.assign({am:"04:00",pm:"13:00"}, x.alertTimes||{});
+    zoneCount=x.zoneCount||12; if(document.activeElement!==$("#zCount")) $("#zCount").value=zoneCount;
+    shiftSwitch=x.shiftSwitch||"07:00";
+    if(document.activeElement!==$("#swTime")) $("#swTime").value=shiftSwitch;
+    if(typeof current!=="undefined" && !current && shiftNow()!==shift){ shift=shiftNow(); }
+    if(document.activeElement!==$("#alAm")) $("#alAm").value=alertTimes.am;
+    if(document.activeElement!==$("#alPm")) $("#alPm").value=alertTimes.pm;
+    renderDriver(); renderAdminGate();
+    if(isAdmin){ renderDriverOptions(); renderDrivers(); if(!aUn) subAdmin(); else renderAdmin(); }
+  }, ()=>{});
+  // new day = new page: check every minute and whenever the phone comes back to this page
+  let shownDay=today();
+  const rollDay=()=>{
+    const t=today(); if(t===shownDay) return;
+    const prev=shownDay; shownDay=t;
+    $("#today").textContent=new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+
+    shift=shiftNow();
+    myDays={}; subMine(); renderDriver();
+    if(isAdmin && $("#tDate").value===prev){ $("#tDate").value=t; $("#aDate").value=t; tSel=null; subAdmin(); }
+  };
+  setInterval(()=>{ rollDay(); if(isAdmin) renderAdmin(); }, 60000);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) rollDay(); });
+  window.addEventListener("focus", rollDay);
+}
+
+/* ---------- tabs ---------- */
+function showTab(t){
+  document.querySelectorAll("#mainTabs button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.tab===t));
+  $("#driver").classList.toggle("hidden", t!=="driver");
+  $("#admin").classList.toggle("hidden", t!=="admin");
+  if(t==="admin" && !aUn) subAdmin();
+}
+$("#mainTabs").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b) showTab(b.dataset.tab); });
+$("#adminTabs").addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#adminTabs button").forEach(x=>x.setAttribute("aria-pressed", x===b));
+  ["today","deliv","drv","clean"].forEach(k=>$("#sub-"+k).classList.toggle("hidden", k!==b.dataset.sub));
+});
+
+
+/* ---------- one-time setup (#setup) ---------- */
+const SEED={"s": "VQLuXHgGNOF/7tGYYaFZmQ==", "i": "Tm6GB4wC4qrXsKmr", "c": "f2KzSm5qqfPy0Zn9ohZvCuHWqCn9cyHUPoys7kFXZAhNoyz/9zXolyaC8TvjPrN7f1dh34k3cGiKyfp3OZNb3v4Hvr+D6JPd3YXZmkXcOHViMrtSZjL7HVPpoglfdijoNItXyQE+PyOC5LLDSE3FCORHSkCxbJeiZ8LbzOLHR4vl9k+SNPtYLwqorMB/cv2n6NR4pAnk2Q/BBwFrz2DMXq4nmKY50jwTyFA+o6ZefTX8k/XKalMU0XkPH6CR2q3BtY0v8AsqwlZGGX0hFa1MNU1XtaWwTcPBcj9zh9KPfUqaSrVJsyZ0WGifj0m53r+jz1up/C/HxXVS58Gkldz7MFenz7+BPACYIgrzEqPdJcJwE0+GEg3nCQQM3K5+eF1s8fvfKNQpBagmBQp8QxNHuqQbkKUFqZPSTp2ijR8lUpGR2IdwOuuKagDxMg1YmSyENhEbQfCAqLYiNXGWufRGdBi4xfssrt5FC0lCr0f2EBHzJyc6o0nsowsDc/9iOzbknclS+OLQkWPKaPOWUJd0CXZD/BFTSq8GCdhWdGVUXWMdoQ2BqaNfJqtJ/1sGNltbG7S06cyxxGycXQy0b+pk079YVse5Yd0oe9ipsHPSNwyXpBfZ/RihgPzH6YOTh9gC/t+P3CqScj/gVXt4XeR/g9liKrvU/LlBbrAcFmyw/e0bgqXgx9WCW+vPSN5b3H+ODaMtj+Cz6Y0Wt9TBnp2SjPfEKaFuDXqYlJiWaWqr+IW7bCu2tlzCqNAkFZg7ZDCIDakDVTvJ/yjsgF3DFOq54i64GPOqGtz22KSmvGVx1VIh1ACuHTWyQ5rybePzhCaEbQCAWCuEMwKH3FW97jfKJfTQiZGYjGjZ+mfOK8J7kNZg/nbF2ZLoVNBhyLIIQcaJRfBlB4JQdOEQc3Ls1GxsIxnYhhexvdyvvNUsThubZ1o2uyLAOrgSj9344/XJcwofMu8O5IJFB+PHrTR12DpPXASPYkUiiaKpr9miAMFrXemC7swJNSAv9w4Y7H/d6szg9uHkoLs0m3WputXCCeVS/aiTbAfR1MU4buz+moy4/paEEIF5414+M51RNKQ1UDXjAtL0oKiZSAdEUTnwOujS/GhMuNnzJGZ1VQgiDX838n7BRyb0GHEdefg8/kaIeuHlh1LkxzW+LcOfO4aZoMu5dcgP/Uo+BdaaQoTmRMGfmj7JUqOFuiPK0Nkvdc7svs+ct7ZIA8lAJbqnIKDW9ZuV9nX2SqwRLA3qUrZeVUX4GqRoJ9d8awcUIeRtvzCzWMTtIoJJ7nxAcaOdbKBggmX3VPGFUFtqkqLXYT3vBed79c75gQZ6PKEH1WgwfQr6gS4VfDMBMmKndy+8nWWWN48LMpGsVcd0XFPQgk0YVpyLnxT1+v3JPi2/ak5Nfc+hd3HSWyIR51kxpgsZG4opgT551BTDQM4BI7GtiE1uX2iRQZLGv3pNi7MQwmhTg+0PzLTmPKFjZsqfJIyGx66l98eQXTijJxFVvYnMpk67v/8m49X8RlfG6E3vnwOC9hDtsq3YExGt8tRTkuGoC54pL4szZO133lBNy3RnFAEN9rqr6Pp+AHVUnmBmIn9qgYGPP7o8fiWAjIIEHfPMYcHzEwxfUagGG5SZfUUDGxI9+GKccM6fVyGyLFN84OwLatRVEEr4qmceSnrIxdmKRBImKNDgLgDNCHuFBDNUrQUczleKXCl6UDItSRXY3SGqdjOp4iTSAXiroDsMcE63GwDKFoYjphtKhFQf6UHOlLTlsBFS0WY6ekaH8HiPtVq099BAcofPvH7QWkM8fX2LpcBboqdmNU1nbuyIM13Zt6PGDLXua1JtSHzQ6fVz/xg0GOvKJxewJ4TQcdM0RvF8k4RzwJZFiQEspdqbqZCVQWzeQIexIzDF1WYWtakkDdHxt6pI/fCfI8DhveK28Tth2Jh+eeQ+qrtcqJjb8kNVtkPvMLD3kIptUuhu+aBQXXLjj2oz4Ov4L3HdYuRS4pjBfaF9ZOGBKdeG0XW2rH8Vqq0kONcNn6YIvoNEPh16mxQUZ0zFM/379JwpC9YEIn1OVY2jFk39NrVgu8O9whKcSSZlxvhXPCAE7gnoc/QxB9oP0xcn/J1ANCzxlJczrA0/CeaCFuW6LBCB9aeaH8eiCq0tjpqyaO73Tjtm8L6Nf2CbRvj4ah1fhwdt6oFPu1A86HMwprktAMvHqNgX2IZqVqWJT6iaL+SIVv7qMqHFZC1iYn38+mk7sqJ5ieEIBjGJV1nn0LbVegQeKvqqmmMUQFGYJzkP3SSNihrhuRxzPh9RHzpFkAH1GDwmc1xoaJOv+viKd8XdaZXLHunxM/fV8S38nsJbOvfcR0rY+isTjdvbuVtDSC8Qx4xCp57YdtMnLwALTiZEBV51wWSRp93Ilr525L4W9slVD8nTw02SKHAYpxqC3KkLPdOXKzLnu/8/scJ67lFdDPbkbSBsq57+pTnsFSvm9umRjo/0IKkMYw5kJOVYcuLdyj/Wn1ouVtZMYnTyeU+0z0/NmvnXWQYRjeujQAmgpi2x4fMu5rI3aV1WpU2tBDY6TF9GBo3+Wtz2DJYUgnQlYY+4qbPFeaql25qTE6K+m8cLw341gU9FeF2yOvcIIkpIw2PChZXaXo4Qqg=="};
+const b64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
+async function openSeed(pass){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(SEED.s),iterations:200000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const out=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(SEED.i)},key,b64(SEED.c));
+  return JSON.parse(new TextDecoder().decode(out));
+}
+$("#sBtn").onclick=async ()=>{
+  const p=$("#sPass").value, out=$("#sOut"), btn=$("#sBtn"), log=t=>{ out.textContent+=t+"\n"; };
+  out.textContent="";
+  let seed; try{ seed=await openSeed(p); }catch(e){ log("Wrong owner password."); return; }
+  btn.disabled=true;
+  try{
+    try{ await auth.createUserWithEmailAndPassword(emailOf(OWNER),p); }
+    catch(e){ if(e.code==="auth/email-already-in-use") await auth.signInWithEmailAndPassword(emailOf(OWNER),p); else throw e; }
+    await db.doc("logins/"+OWNER).set({email:emailOf(OWNER)});
+    log("Owner login ready: "+OWNER);
+    const adm=[];
+    for(const a of seed.admins){
+      const email=emailOf(a.username), id=await makeLogin(email,a.password);
+      await db.doc("accounts/"+id).set({role:"admin",username:a.username});
+      await db.doc("logins/"+a.username).set({email});
+      adm.push({username:a.username,uid:id}); log("Admin ready: "+a.username);
+    }
+    const drv=[];
+    for(const d of seed.drivers){
+      const email=emailOf(d.username), id=await makeLogin(email,d.password);
+      await db.doc("accounts/"+id).set({role:"driver",driverId:d.id,username:d.username});
+      await db.doc("logins/"+d.username).set({email});
+      const r={...d}; delete r.password; r.uid=id; drv.push(r); log("Driver ready: "+(d.zone||"")+" "+d.name);
+    }
+    await db.doc("data/settings").set({drivers:drv, admins:adm, ...seed.settings});
+    log("\nDone. Opening the app…");
+    setTimeout(()=>{ location.hash=""; location.reload(); },1500);
+  }catch(e){ log("Stopped: "+(e.message||e.code)); log("Check the Firestore rules were published, then run setup again."); }
+  finally{ btn.disabled=false; }
+};
+/* ---------- sign in ---------- */
+async function signIn(){
+  const u=$("#lUser").value.trim().toLowerCase(), p=$("#lPass").value, err=$("#lErr"), btn=$("#lBtn");
+  err.classList.add("hidden");
+  if(!u||!p){ err.textContent="Enter your username and password."; err.classList.remove("hidden"); return; }
+  btn.disabled=true; btn.textContent="Signing in…";
+  try{
+    let email=emailOf(u);
+    try{ const l=await db.doc("logins/"+u).get(); if(l.exists && l.data().email) email=l.data().email; }catch(e){}
+    await auth.signInWithEmailAndPassword(email, p);
+    $("#lPass").value="";
+  }catch(e){
+    err.textContent = (e.code==="auth/network-request-failed") ? "No internet. Try again." : "Wrong username or password.";
+    err.classList.remove("hidden");
+  }finally{ btn.disabled=false; btn.textContent="Sign in"; }
+}
+$("#lBtn").onclick = signIn;
+$("#lPass").addEventListener("keydown", e=>{ if(e.key==="Enter") signIn(); });
+$("#switchDriver").onclick = ()=>{ if(isOwner){ me=null; renderDriver(); return; } if(confirm("Sign out?")) auth.signOut(); };
+
+/* ---------- driver ---------- */
+function myDriver(){
+  const d=drivers.find(x=>x.id===me);
+  return d || null;
+}
+function subMine(){
+  if(subMine._un){ subMine._un(); subMine._un=null; }
+  const drv=myDriver(); subMine._who=drv&&drv.id; subMine._day=today(); myDays={};
+  if(!drv) return;
+  subMine._un = db.collection("days").where("date","==",today()).where("driverId","==",drv.id).onSnapshot(s=>{
+    myDays={}; s.docs.forEach(d=>{ const x=d.data(); myDays[x.shift]=x; }); renderDriver();
+  }, ()=>{});
+}
+const entriesOf = day => (day && day.entries) || {};
+function dayCount(){ return Object.keys(entriesOf(myDays.am)).length + Object.keys(entriesOf(myDays.pm)).length; }
+
+// shift is set by the phone clock only: before the switch time = Dawn, after = Late morning
+$("#shiftSeg").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b||b.dataset.shift===shift) return; toast(b.dataset.shift==="pm" ? "Late morning opens at "+switchTxt()+"." : "Dawn shift is closed. It is now the Late morning shift."); });
+setInterval(()=>{ const s2=shiftNow(); if(s2!==shift){ shift=s2; if(typeof current!=="undefined" && current) return; renderDriver(); toast(SHIFT[s2]+" shift started"); } }, 30000);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && shiftNow()!==shift && !current){ shift=shiftNow(); renderDriver(); } });
+const delPhotos = (date, sh, drvId, key, e) => e && e.v===2
+  ? [photoId(date,sh,drvId,key)+"_box", photoId(date,sh,drvId,key)+"_drop"]
+  : [photoId(date,sh,drvId,key)];
+const sortedDels = day => Object.entries(entriesOf(day)).sort((a,b)=>a[1].at-b[1].at).map(([k,e],i)=>({key:k, e, n:i+1}));
+function lazyImg(id, alt){
+  const img=el("img",{alt,"data-id":id});
+  if(photoCache[id]) img.src=photoCache[id]; else io.observe(img);
+  return img;
+}
+
+function renderDriver(){
+  const drv=myDriver();
+  const noSelfie = !isOwner && !!drv && profiles!==null && !profiles[drv.id];
+  $("#switchDriver").textContent = isOwner ? "Switch driver" : "Sign out";
+  $("#lTitle").classList.toggle("hidden", isOwner); $("#lTitle").nextElementSibling.classList.toggle("hidden", isOwner);
+  if(isOwner){ $("#ownerPick").classList.toggle("hidden", !!drv);
+    if(!drv) $("#ownerPickList").replaceChildren(...drivers.filter(d=>d.active!==false).sort((a,b)=>zoneNum(a)-zoneNum(b)).map(d=>el("button",{onclick:()=>{ me=d.id; renderDriver(); }},(d.zone?d.zone+"  ":"")+d.name))); }
+  $("#pickDriver").classList.toggle("hidden", !!drv);
+  $("#needSelfie").classList.toggle("hidden", !noSelfie);
+  $("#driverMain").classList.toggle("hidden", !drv || noSelfie);
+  if((drv&&drv.id)!==subMine._who && db) subMine();
+  if(!drv || noSelfie) return;
+  $("#dName").textContent = drv.name;
+  $("#myAv").replaceChildren(avatar(drv,"s"));
+  { const n=warnsOf(drv).length, left=Math.max(0,MAXW-n), w=$("#myWarn");
+    w.classList.toggle("hidden", !n); w.classList.toggle("max", n>=MAXW);
+    if(n) w.replaceChildren(
+      el("div",{class:"wn"},"⚠️ Warnings: "+n+"/"+MAXW+"  |  إنذارات: "+n+"/"+MAXW),
+      el("div",{class:"wl"}, n>=MAXW ? "Salary deduction applied. | تم الخصم من الراتب." : left+" left before salary deduction. | باقي "+left+" قبل الخصم من الراتب."),
+      el("div",{class:"wd"}, warnsOf(drv).map((k,i)=>el("div",{class:"wrow"},
+        el("span",null,(i+1)+". "+k.slice(0,10)+" "+(k.endsWith("_am")?"Dawn / الفجر":"Late morning / قبل الظهر")),
+        isOwner ? el("button",{class:"wx","aria-label":"Cancel warning "+(i+1),onclick:async()=>{
+          if(!confirm("Cancel warning "+(i+1)+" for "+drv.name+" ("+k.slice(0,10)+")?")) return;
+          try{ await saveDrivers(drivers.map(x=>x.id===drv.id?{...x,warnings:warnsOf(x).filter(w=>w!==k)}:x)); toast("Warning cancelled."); }catch(e){ toast("Not saved."); } }},"✕") : null))),
+      isOwner ? el("button",{class:"wreset",onclick:async()=>{
+        if(!confirm("Reset all "+n+" warnings for "+drv.name+" to 0?")) return;
+        try{ await saveDrivers(drivers.map(x=>x.id===drv.id?{...x,warnings:[]}:x)); toast("Warnings reset to 0."); }catch(e){ toast("Not saved."); } }},"Reset all warnings") : null); }
+  $("#dName").textContent = drv.name+(drv.zone?" | "+drv.zone:"");
+  document.querySelectorAll("#shiftSeg button").forEach(b=>{ const on=b.dataset.shift===shift; b.setAttribute("aria-pressed", on); b.classList.toggle("locked", !on); b.textContent=(on?"":"🔒 ")+SHIFT[b.dataset.shift]; });
+  const n=dayCount();
+  $("#doneN").textContent=n; $("#ofN").textContent="of "+LIMIT+" deliveries today";
+  $("#barFill").style.width=Math.min(100,n/LIMIT*100)+"%";
+  const fr=myDays[shift] && myDays[shift].fridge;
+  $("#fridgeCard").classList.toggle("ok", !!fr);
+  $("#fridgeTitle").textContent = SHIFT[shift]+" fridge temperature";
+  $("#fridgeSub").textContent = fr ? "Done at "+timeTxt(fr.at)+(isLate(fr.at,shift)?" (late)":"") : "Take a photo of the thermometer before "+hm12(alertTimes[shift])+".";
+  $("#fridgeBtn").textContent = fr ? "View" : "Take photo";
+  const dels=sortedDels(myDays[shift]).reverse();
+  $("#listTitle").textContent = SHIFT[shift]+" deliveries ("+dels.length+")";
+  const list=$("#dList"); list.replaceChildren();
+  if(!dels.length){ list.append(el("p",{class:"note"},"No deliveries yet. Tap New delivery to start.")); return; }
+  dels.forEach(({key,e,n})=>{
+    const ids=delPhotos(today(),shift,drv.id,key,e);
+    list.append(el("div",{class:"row done"},
+      el("div",{class:"boxno"},"#"+n),
+      el("div",{class:"info"}, el("div",{class:"name"},"Delivery "+n), el("div",{class:"sub"},"Saved "+timeTxt(e.at2||e.at))),
+      el("div",{class:"pair"}, ids.map((id,i)=>{ const im=lazyImg(id,"Photo"); im.onclick=()=>viewPhoto(id,"Delivery "+n+(ids.length>1?(i?" | where / who":" | box number"):"")+" | "+stampTxt(i?e.at2:e.at)); return im; }))
+    ));
+  });
+}
+
+$("#newDel").onclick = ()=>{
+  const drv=myDriver(); if(!drv) return;
+  if(dayCount()>=LIMIT){ toast("You reached "+LIMIT+" deliveries today."); return; }
+  const n=Object.keys(entriesOf(myDays[shift])).length+1;
+  current={kind:"delivery", step:1, n, key:"d"+Date.now().toString(36), drv, shift, date:today(), shots:[]};
+  openCamFor();
+};
+const STEP = {
+  1:{ico:"🔢", what:"Take a photo of the BOX NUMBER", det:"Make sure the number on the box is clear and readable."},
+  2:{ico:"🤝", what:"Take a photo of the DELIVERY", det:"Show who received the box, or where you left it (door, reception, gate)."}
+};
+function camView(state){ // prompt | confirm
+  $("#camPrompt").classList.toggle("hidden", state!=="prompt");
+  $("#camView").classList.toggle("hidden", state!=="confirm");
+  $("#camBtns").classList.toggle("hidden", state!=="confirm");
+  $("#cam").classList.remove("hidden");
+}
+function openCamFor(){
+  const c=current;
+  $("#camWho").textContent = c.kind==="fridge" ? SHIFT[c.shift]+" fridge temperature" : "Delivery "+c.n+": step "+c.step+" of 2";
+  $("#saveShot").textContent = c.kind==="fridge" ? "Save" : c.step===1 ? "Next" : "Save delivery";
+  if(c.kind==="delivery"){
+    const st=STEP[c.step];
+    $("#pStep").textContent="STEP "+c.step+" OF 2";
+    [...$("#pSteps").children].forEach((x,i)=>x.classList.toggle("on", i<c.step));
+    $("#pIco").textContent=st.ico; $("#pWhat").textContent=st.what; $("#pDet").textContent=st.det;
+    camView("prompt"); return;
+  }
+  shootNow();
+}
+function shootNow(){ const inp=$("#nativeCam"); inp.value=""; inp.click(); }
+$("#pGo").onclick = shootNow;
+
+$("#fridgeBtn").onclick = ()=>{
+  const drv=myDriver(); if(!drv) return;
+  const fr=myDays[shift] && myDays[shift].fridge;
+  if(fr){ viewPhoto(fridgeId(today(),shift,drv.id), SHIFT[shift]+" fridge | "+stampTxt(fr.at)); return; }
+  current={kind:"fridge", drv, shift, date:today()};
+  openCamFor();
+};
+const fridgeId = (date, sh, drvId) => dayId(date,sh,drvId)+"_fridge";
+
+/* ---------- profile photo ---------- */
+function avatar(d, size){
+  const src=profiles&&profiles[d.id];
+  if(src) return el("img",{class:"av "+size,src,alt:d.name});
+  const num=(d.username||"").replace(/\D/g,"")||(d.name||"?").slice(0,2);
+  return el("span",{class:"av "+size},num);
+}
+let selfieFor=null; // driver id, or "admin_<username>"
+function openSelfie(target){ selfieFor=target||null; const i=$("#selfieCam"); i.value=""; i.click(); }
+$("#selfieBtn").onclick=()=>openSelfie();
+$("#myAvBtn").onclick=()=>{ if(confirm("Take a new profile photo?")) openSelfie(); };
+$("#selfieCam").addEventListener("change", e=>{
+  const f=e.target.files[0], drv=myDriver(), target=selfieFor || (drv&&drv.id); selfieFor=null; if(!f||!target) return;
+  if(f.lastModified && Date.now()-f.lastModified > 3*60*1000){ toast("Take a new selfie with the camera now."); return; }
+  const img=new Image();
+  img.onload=async ()=>{
+    const S=240, m=Math.min(img.naturalWidth,img.naturalHeight);
+    const c=document.createElement("canvas"); c.width=S; c.height=S;
+    c.getContext("2d").drawImage(img,(img.naturalWidth-m)/2,(img.naturalHeight-m)/2,m,m,0,0,S,S);
+    URL.revokeObjectURL(img.src);
+    try{ await db.doc("profiles/"+target).set({img:c.toDataURL("image/jpeg",.75), at:Date.now()}); toast("Profile photo saved"); }
+    catch(err){ toast("Not saved. Check your internet and try again."); }
+  };
+  img.src=URL.createObjectURL(f);
+});
+
+/* ---------- camera + stamp ---------- */
+let current=null, captured=null;
+function closeCam(){ $("#cam").classList.add("hidden"); captured=null; current=null; $("#nativeCam").value=""; }
+function stamp(source, sw, sh){
+  const max=820, k=Math.min(1, max/Math.max(sw,sh));
+  const w=Math.round(sw*k), h=Math.round(sh*k);
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const g=c.getContext("2d"); g.drawImage(source,0,0,w,h);
+  const at=Date.now(), fs=Math.max(16,Math.round(w/30)), lh=fs*1.4, pd=fs*.7;
+  const F="'IBM Plex Sans', 'IBM Plex Sans Arabic', Tahoma, sans-serif";
+  const band=pd*2+lh*3;
+  g.fillStyle="rgba(0,0,0,.62)"; g.fillRect(0,h-band,w,band);
+  g.textBaseline="middle"; g.textAlign="left";
+  let y=h-band+pd+lh/2;
+  g.fillStyle="#fff"; g.font="700 "+Math.round(fs*1.5)+"px "+F; g.fillText(current.kind==="fridge" ? "FRIDGE TEMP" : "DELIVERY #"+current.n+(current.step===1?"  BOX":"  DROP-OFF"), pd, y, w*.6);
+  g.textAlign="right"; g.fillStyle="#FFD27A"; g.font="700 "+Math.round(fs*1.1)+"px ui-monospace, Menlo, monospace"; g.fillText(stampTxt(at), w-pd, y);
+  g.textAlign="left"; y+=lh;
+  g.fillStyle="#fff"; g.font="500 "+fs+"px "+F; g.fillText(SHIFT[current.shift]+" shift", pd, y); y+=lh;
+  g.fillText("Driver: "+current.drv.name+" ("+current.drv.username+")"+(current.drv.zone?" | "+current.drv.zone:""), pd, y, w-pd*2);
+  let q=.6, url=c.toDataURL("image/jpeg",q);
+  while(url.length>95000 && q>.25){ q-=.07; url=c.toDataURL("image/jpeg",q); }
+  return {url, at};
+}
+$("#nativeCam").addEventListener("change", e=>{
+  const f=e.target.files[0]; if(!f||!current) return;
+  if(f.lastModified && Date.now()-f.lastModified > 3*60*1000){ toast("Take a new photo with the camera now. Old photos are not accepted."); e.target.value=""; return; }
+  const img=new Image(); img.onload=()=>{ captured=stamp(img,img.naturalWidth,img.naturalHeight); URL.revokeObjectURL(img.src); $("#shot").src=captured.url; camView("confirm"); };
+  img.src=URL.createObjectURL(f);
+});
+$("#retake").onclick = ()=>{ captured=null; shootNow(); };
+$("#saveShot").onclick = async ()=>{
+  if(!captured||!current) return;
+  const c=current;
+  if(c.kind==="delivery" && c.step===1){ c.shots[0]=captured; captured=null; c.step=2; openCamFor(); return; }
+  const btn=$("#saveShot"); btn.disabled=true; btn.textContent="Saving…";
+  const {drv,shift:sh,date}=c, did=dayId(date,sh,drv.id), ref=db.doc("days/"+did);
+  const base={date, shift:sh, driverId:drv.id, driverName:drv.name, username:drv.username};
+  try{
+    if(c.kind==="fridge"){
+      const fid=fridgeId(date,sh,drv.id);
+      await db.doc("photos/"+fid).set({img:captured.url, driverId:drv.id, date, shift:sh}); photoCache[fid]=captured.url;
+      const f={fridge:{at:captured.at}};
+      if(myDays[sh]) await ref.update(f); else await ref.set({...base, entries:{}, ...f});
+      toast("Fridge temperature saved"); closeCam();
+    }else{
+      const [idBox,idDrop]=delPhotos(date,sh,drv.id,c.key,{v:2});
+      await db.doc("photos/"+idBox).set({img:c.shots[0].url, driverId:drv.id, date, shift:sh}); photoCache[idBox]=c.shots[0].url;
+      await db.doc("photos/"+idDrop).set({img:captured.url, driverId:drv.id, date, shift:sh}); photoCache[idDrop]=captured.url;
+      const entry={[c.key]:{v:2, at:c.shots[0].at, at2:captured.at}};
+      if(myDays[sh]) await ref.update({["entries."+c.key]:entry[c.key]}); else await ref.set({...base, entries:entry});
+      toast("Delivery "+c.n+" saved"); closeCam();
+    }
+  }catch(err){
+    toast(err.code==="quota_exceeded" ? "Storage is full. Ask the office to delete old photos." : "Not saved. Check your internet and tap Save again.");
+  }finally{ btn.disabled=false; if(current) openCamLabel(); }
+};
+function openCamLabel(){ const c=current; $("#saveShot").textContent = c.kind==="fridge" ? "Save" : c.step===1 ? "Next photo" : "Save delivery"; }
+$("#camClose").onclick = ()=>{ if(current && current.kind==="delivery" && current.step===2 && !confirm("Cancel this delivery? The photos will not be saved.")) return; closeCam(); };
+
+/* ---------- photos ---------- */
+const photoCache={};
+async function loadPhoto(id){
+  if(photoCache[id]!==undefined) return photoCache[id];
+  const s=await db.doc("photos/"+id).get(); photoCache[id]=s.exists?s.data().img:""; return photoCache[id];
+}
+async function viewPhoto(id, txt){
+  const src=await loadPhoto(id).catch(()=>"");
+  if(!src){ toast("Photo not found."); return; }
+  $("#vImg").src=src; $("#vTxt").textContent=txt; $("#viewer").classList.remove("hidden");
+}
+$("#viewer").onclick = ()=>$("#viewer").classList.add("hidden");
+const io=new IntersectionObserver(ents=>ents.forEach(async en=>{
+  if(!en.isIntersecting) return; io.unobserve(en.target);
+  const src=await loadPhoto(en.target.dataset.id).catch(()=>""); if(src) en.target.src=src;
+}),{rootMargin:"300px"});
+
+/* ---------- admin: photos ---------- */
+$("#aDate").value=today();
+let aUn=null;
+function subAdmin(){
+  if(!db||!isAdmin) return;
+  if(aUn) aUn();
+  aUn=db.collection("days").where("date","==",$("#aDate").value||today()).onSnapshot(s=>{ adminDays=s.docs.map(d=>d.data()); renderAdmin(); }, ()=>{});
+}
+$("#aDate").addEventListener("change", ()=>{ $("#tDate").value=$("#aDate").value; subAdmin(); });
+$("#tDate").value=today();
+$("#tDate").addEventListener("change", ()=>{ $("#aDate").value=$("#tDate").value; subAdmin(); });
+let tSel=null;
+$("#tBack").onclick=()=>{ tSel=null; renderToday(); window.scrollTo(0,0); };
+function photoTile(id, label, sub, viewTxt){
+  const img=el("img",{class:"ph",alt:label,"data-id":id});
+  if(photoCache[id]) img.src=photoCache[id]; else io.observe(img);
+  return el("button",{class:"tile",onclick:()=>viewPhoto(id,viewTxt)}, img, el("div",{class:"t"}, el("b",null,label), sub));
+}
+function delTile(date, sh, drvId, drvName, key, e, n){
+  const ids=delPhotos(date,sh,drvId,key,e), labels=ids.length>1?["Box","Drop-off"]:["Photo"];
+  return el("div",{class:"dtile"},
+    el("div",{class:"two",style:ids.length<2?"grid-template-columns:minmax(0,1fr)":""}, ids.map((id,i)=>el("button",{onclick:()=>viewPhoto(id, drvName+" | "+SHIFT[sh]+" | Delivery "+n+" "+labels[i]+" | "+stampTxt(i?e.at2:e.at))}, lazyImg(id,labels[i]), el("span",null,labels[i])))),
+    el("div",{class:"t"}, el("b",null,"Delivery "+n), drvName+", "+timeTxt(e.at2||e.at)));
+}
+function renderToday(){
+  if(!isAdmin) return;
+  const date=$("#tDate").value||today();
+  $("#tList").classList.toggle("hidden", !!tSel);
+  $("#tDetail").classList.toggle("hidden", !tSel);
+  const dayOf=(id,sh)=>adminDays.find(x=>x.driverId===id&&x.shift===sh);
+  const nBox=id=>Object.keys(entriesOf(dayOf(id,"am"))).length+Object.keys(entriesOf(dayOf(id,"pm"))).length;
+  if(!tSel){
+    $("#tTimes").replaceChildren(
+      el("span",null,"Fridge photo due: Dawn by "+hm12(alertTimes.am)+" | Late AM by "+hm12(alertTimes.pm)),
+      el("button",{class:"link",style:"padding:0",onclick:()=>document.querySelector('#adminTabs [data-sub="drv"]').click()},"Change times"));
+    const rows=$("#tRows"); rows.replaceChildren();
+    const act=drivers.filter(d=>d.active!==false).sort((a,b)=>zoneNum(a)-zoneNum(b)||a.name.localeCompare(b.name));
+    if(!act.length) rows.append(el("tr",null,el("td",{colspan:"4"},"No active drivers. Add or activate them in Accounts.")));
+    const cell=(d,sh)=>{
+      const f=(dayOf(d.id,sh)||{}).fridge;
+      if(f){ const lt=isLate(f.at,sh); return el("td",null, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, "✓ "+timeTxt(f.at)+(lt?" late":""))); }
+      return el("td",null, deadlinePassed(date,sh) ? el("span",{class:"fno"},"Missing") : el("span",{class:"pend"},"—"));
+    };
+    act.forEach(d=>{
+      const zs=el("select",{"aria-label":"Zone for "+d.name,onchange:e=>saveDrivers(drivers.map(x=>x.id===d.id?{...x,zone:e.target.value}:x))},
+        el("option",{value:""},"—"), ...zoneList().map(z=>el("option",{value:z},z)));
+      zs.value=d.zone||"";
+      rows.append(el("tr",null,
+        el("td",null, el("button",{class:"dn",onclick:()=>{ tSel=d.id; renderToday(); window.scrollTo(0,0); }}, avatar(d,"s"), el("span",null,d.name, warnBadge(d)))),
+        el("td",null, zs), cell(d,"am"), cell(d,"pm")));
+    });
+    const off=drivers.length-act.length;
+    $("#tOff").textContent = off ? off+" off-duty account"+(off>1?"s":"")+" hidden. Manage them in Accounts." : "";
+    return;
+  }
+  const d=drivers.find(x=>x.id===tSel); if(!d){ tSel=null; return renderToday(); }
+  $("#tName").replaceChildren(el("span",{style:"display:flex;align-items:center;gap:10px"},avatar(d,"m"),d.name), el("button",{class:"acbtn red",style:"margin-left:8px;font-size:13px",onclick:()=>openDeduction(d.id)},"Deduction"));
+  $("#tSum").textContent="@"+d.username+" | "+date+" | fridge photos";
+  const ft=$("#tFridge"); ft.replaceChildren();
+  ["am","pm"].forEach(sh=>{
+    const f=(dayOf(d.id,sh)||{}).fridge;
+    if(f){ const t=photoTile(fridgeId(date,sh,d.id), SHIFT[sh], timeTxt(f.at), d.name+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at)); t.className="ftile"; ft.append(t); }
+    else ft.append(el("div",{class:"ftile no"},SHIFT[sh],el("span",{style:"font-weight:400"},"Missing")));
+  });
+  ["am","pm"].forEach(sh=>{
+    const dels=sortedDels(dayOf(d.id,sh));
+    $("#t"+(sh==="am"?"Am":"Pm")+"T").textContent=SHIFT[sh]+" deliveries ("+dels.length+")";
+    const g=$("#t"+(sh==="am"?"Am":"Pm")); g.replaceChildren();
+    if(!dels.length) g.append(el("p",{class:"count"},"None"));
+    dels.forEach(x=>g.append(delTile(date,sh,d.id,d.name,x.key,x.e,x.n)));
+  });
+}
+["#aShift","#aDriver"].forEach(s=>$(s).addEventListener("change", renderAdmin));
+function renderAdmin(){
+  if(!isAdmin) return;
+  renderAlerts();
+  renderToday();
+  const sh=$("#aShift").value, dr=$("#aDriver").value, date=$("#aDate").value;
+  const days=adminDays.filter(d=>(!sh||d.shift===sh)&&(!dr||d.driverId===dr));
+  const ft=$("#aFridge"); ft.replaceChildren();
+  drivers.filter(d=>!dr||d.id===dr).forEach(d=>{
+    const cell=s2=>{
+      const day=adminDays.find(x=>x.driverId===d.id&&x.shift===s2), f=day&&day.fridge;
+      if(f) return el("td",null, el("button",{class:"fok",onclick:()=>viewPhoto(fridgeId(date,s2,d.id), d.name+" | "+SHIFT[s2]+" fridge | "+stampTxt(f.at))}, "✓ "+timeTxt(f.at)+(isLate(f.at,s2)?" late":"")));
+      return el("td",null, el("span",{class:"fno"},"Missing"));
+    };
+    ft.append(el("tr",null, el("td",null, el("span",{style:"display:flex;align-items:center;gap:8px"},avatar(d,"s"),d.name)), cell("am"), cell("pm")));
+  });
+  // per-driver counts
+  const counts={}; days.forEach(d=>{ counts[d.driverId]=(counts[d.driverId]||0)+Object.keys(entriesOf(d)).length; });
+  const cBox=$("#aCounts"); cBox.replaceChildren();
+  drivers.filter(d=>!dr||d.id===dr).forEach(d=>{ const n=counts[d.id]||0; if(n||dr) cBox.append(el("div",null, el("span",null,d.name), el("b",null,n+" / "+LIMIT))); });
+  let rows=[];
+  days.forEach(d=>sortedDels(d).forEach(x=>rows.push({...x, day:d})));
+  rows.sort((a,b)=>(b.e.at2||b.e.at)-(a.e.at2||a.e.at));
+  $("#aCount").textContent=rows.length+" deliveries"+(rows.length>150?" (showing latest 150, filter by driver to see more)":"");
+  const g=$("#aGrid"); g.replaceChildren();
+  rows.slice(0,150).forEach(r=>g.append(delTile(r.day.date,r.day.shift,r.day.driverId,r.day.driverName,r.key,r.e,r.n)));
+}
+
+/* ---------- admin: drivers ---------- */
+async function saveDrivers(list){ await db.doc("data/settings").update({drivers:list}); }
+$("#zSave").onclick=async ()=>{
+  const n=Math.max(1,Math.min(99,parseInt($("#zCount").value)||12));
+  try{ await db.doc("data/settings").update({zoneCount:n}); toast("Zones saved: "+n); }
+  catch(e){ toast("Not saved. Only admins can change this."); }
+};
+$("#swSave").onclick=async ()=>{
+  try{ await db.doc("data/settings").update({shiftSwitch:$("#swTime").value||"09:00"}); toast("Shift time saved."); }
+  catch(e){ toast("Not saved. Only admins can change this."); }
+};
+$("#alSave").onclick=async ()=>{
+  try{ await db.doc("data/settings").update({alertTimes:{am:$("#alAm").value||"10:00", pm:$("#alPm").value||"15:00"}}); toast("Alert times saved."); }
+  catch(e){ toast("Not saved. Only admins can change this."); }
+};
+function deadlinePassed(date, sh){
+  if(date<today()) return true; if(date>today()) return false;
+  const [h,m]=(alertTimes[sh]||"23:59").split(":").map(Number), n=new Date();
+  return n.getHours()*60+n.getMinutes() >= h*60+m;
+}
+function lateFridge(date){
+  const out=[];
+  ["am","pm"].forEach(sh=>{
+    if(!deadlinePassed(date,sh)) return;
+    drivers.filter(d=>d.active!==false).forEach(d=>{
+      const day=adminDays.find(x=>x.driverId===d.id&&x.shift===sh);
+      if(!(day&&day.fridge)) out.push({d, sh});
+    });
+  });
+  return out;
+}
+function renderAlerts(){
+  const date=$("#tDate").value||today(), late=lateFridge(date), box=$("#alertBox"); box.replaceChildren();
+  const tb=$("#adminTabBtn"); tb.replaceChildren("Admin");
+  if(!late.length) return;
+  if(date===today()) tb.append(el("span",{class:"dot"},String(late.length)));
+  box.append(el("div",{class:"alert"},
+    el("b",null,"⚠️ "+late.length+" fridge photo"+(late.length>1?"s":"")+" missing"+(date===today()?" today":" on "+date)),
+    el("ul",{style:"list-style:none;padding:0;margin:8px 0 0"}, late.map(x=>el("li",{style:"display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.25)"},
+      el("span",null,x.d.name+(x.d.zone?" ("+x.d.zone+")":"")+": "+SHIFT[x.sh]),
+      el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"}, warnLink(x.d, date, x.sh),
+        (()=>{ const ws=warnsOf(x.d), key=date+"_"+x.sh, n=ws.includes(key)?ws.indexOf(key)+1:ws.length+1; return n>=MAXW ? deductLink(x.d,date,x.sh,n) : null; })())))),
+    el("a",{class:"wa",style:"display:block;text-align:center;margin-top:10px",href:waLink("", "Fridge photo missing ("+date+"):\n"+late.map(x=>"- "+x.d.name+(x.d.zone?" "+x.d.zone:"")+": "+SHIFT[x.sh]).join("\n")),target:"_blank",rel:"noopener"},"Send full list on WhatsApp")));
+}
+function renderAdminGate(){
+  $("#adminLogin").classList.toggle("hidden", isAdmin);
+  $("#adminMain").classList.toggle("hidden", !isAdmin);
+  if(isAdmin){ $("#aWho").textContent=adminCred.username;
+    const aid="admin_"+adminCred.username, src=profiles&&profiles[aid];
+    $("#aAv").replaceChildren(src ? el("img",{class:"av s",src,alt:"Admin"}) : el("span",{class:"av s",style:"font-size:12px"},"📷"));
+    $("#aAvBtn").onclick=()=>{ if(!src || confirm("Take a new profile photo?")) openSelfie(aid); }; }
+}
+$("#aOut").onclick=()=>{ if(confirm("Sign out?")) auth.signOut(); };
+$("#aChange").onclick=async ()=>{
+  const p=$("#aNewPass").value; if(p.length<6){ toast("Password must be at least 6 characters."); return; }
+  try{ await auth.currentUser.updatePassword(p); $("#aNewPass").value=""; toast("Password changed."); }
+  catch(e){ toast(e.code==="auth/requires-recent-login" ? "For safety, sign out and sign in again, then change the password." : "Not changed. Try again."); }
+};
+$("#drvAdd").onclick = async ()=>{
+  const n=$("#drvName").value.trim(), u=$("#drvUser").value.trim().toLowerCase(), p=$("#drvPass").value;
+  if(!n||!u||!p){ toast("Fill in name, username and password."); return; }
+  if(!/^[a-z0-9._-]{2,30}$/.test(u)){ toast("Username: letters, numbers, dot, dash only."); return; }
+  if(p.length<6){ toast("Password must be at least 6 characters."); return; }
+  if(drivers.some(d=>d.username===u) || admins.some(a=>a.username===u) || u===OWNER){ toast("That username is already taken."); return; }
+  const btn=$("#drvAdd"); btn.disabled=true; btn.textContent="Adding…";
+  try{
+    const id=uid(), email=u+"."+Date.now().toString(36)+"@"+DOMAIN;
+    const newUid=await makeLogin(email,p);
+    await db.doc("accounts/"+newUid).set({role:"driver",driverId:id,username:u});
+    await db.doc("logins/"+u).set({email});
+    await saveDrivers([...drivers,{id,name:n,username:u,uid:newUid,active:true}]);
+    $("#drvName").value=""; $("#drvUser").value=""; $("#drvPass").value=""; toast("Driver added: "+u);
+  }catch(e){ toast("Not added: "+(e.message||e.code||"error")); }
+  finally{ btn.disabled=false; btn.textContent="Add driver"; }
+};
+// a new password = a fresh login for the same username; the old login stops working
+async function newLogin(kind, rec){
+  const p=prompt("New password for "+(rec.name||rec.username)+" ("+rec.username+"), at least 6 characters:"); if(p==null) return;
+  if(p.length<6){ toast("Password must be at least 6 characters."); return; }
+  try{
+    const email=rec.username+"."+Date.now().toString(36)+"@"+DOMAIN;
+    const newUid=await makeLogin(email,p);
+    await db.doc("accounts/"+newUid).set(kind==="driver"?{role:"driver",driverId:rec.id,username:rec.username}:{role:"admin",username:rec.username});
+    if(rec.uid && rec.uid!==newUid){ try{ await db.doc("accounts/"+rec.uid).delete(); }catch(e){} }
+    await db.doc("logins/"+rec.username).set({email});
+    if(kind==="driver") await saveDrivers(drivers.map(x=>x.id===rec.id?{...x,uid:newUid}:x));
+    else await db.doc("data/settings").update({admins:admins.map(a=>a.username===rec.username?{...a,uid:newUid}:a)});
+    toast("Password changed. The old password no longer works.");
+  }catch(e){ toast("Not changed: "+(e.message||e.code||"error")); }
+}
+function resetPass(d){ return newLogin("driver", d); }
+function renderDrivers(){
+  renderAdminAccts();
+  const box=$("#drvList"); box.replaceChildren();
+  if(!drivers.length) box.append(el("p",{class:"note"},"Add each driver with a username and password."));
+  const list=[...drivers].sort((a,b)=>((a.active===false)-(b.active===false))||zoneNum(a)-zoneNum(b));
+  list.forEach(d=>{
+    const off=d.active===false;
+    const bt=(label,fn,cls)=>el("button",{class:"acbtn"+(cls?" "+cls:""),onclick:fn},label);
+    box.append(el("div",{class:"acc"+(off?" off":"")},
+      el("div",{class:"acc-top"}, avatar(d,"s"),
+        el("div",{class:"acc-info"},
+          el("div",{class:"acc-name"},(d.zone?d.zone+"  ":"")+d.name, warnBadge(d)),
+          el("div",{class:"acc-sub"},"@"+d.username+(d.phone?"  |  +"+d.phone:"")+(off?"  |  off duty":"")))),
+      el("div",{class:"acc-btns"},
+        bt(off?"Set active":"Set off duty",()=>saveDrivers(drivers.map(x=>x.id===d.id?{...x,active:off}:x))),
+        bt("Rename",async()=>{ const n=prompt("Driver name:", d.name); if(n&&n.trim()) await saveDrivers(drivers.map(x=>x.id===d.id?{...x,name:n.trim()}:x)); }),
+        bt(d.phone?"Edit phone":"Add phone",async()=>{ const v=prompt("WhatsApp number for "+d.name+" with country code (e.g. 96550000000):", d.phone||""); if(v==null) return; let n=v.replace(/\D/g,""); if(n.length===8) n="965"+n; await saveDrivers(drivers.map(x=>x.id===d.id?{...x,phone:n}:x)); }),
+        bt("Deduction",()=>openDeduction(d.id),"red"),
+        bt("Reset password",()=>resetPass(d)),
+        warnsOf(d).length>=MAXW ? (()=>{ const ws=warnsOf(d), k=ws[ws.length-1]; const a=deductLink(d,k.slice(0,10),k.endsWith("_am")?"am":"pm",ws.length); a.className="acbtn"; a.style.cssText="color:var(--paper);background:var(--ink);text-decoration:none"; return a; })() : null,
+        (isOwner && warnsOf(d).length) ? bt("Reset warnings ("+warnsOf(d).length+")",async()=>{ if(confirm("Reset "+d.name+"'s "+warnsOf(d).length+" warnings to 0?")) await saveDrivers(drivers.map(x=>x.id===d.id?{...x,warnings:[]}:x)); },"red") : null,
+        bt("Delete",async()=>{ if(confirm("Delete "+d.name+"?")) await saveDrivers(drivers.filter(x=>x.id!==d.id)); },"red")),
+      (warnsOf(d).length ? el("div",{class:"wlist"},
+        el("div",{class:"count",style:"margin:0 0 4px"},"Warnings"+(isOwner?" (tap ✕ to cancel one)":"")),
+        warnsOf(d).map((k,idx)=>el("span",{class:"wchip"},(idx+1)+". "+k.slice(0,10)+" "+(k.endsWith("_am")?"Dawn":"Late AM"),
+          isOwner ? el("button",{class:"wx","aria-label":"Cancel warning "+(idx+1),onclick:async()=>{
+            if(!confirm("Cancel warning "+(idx+1)+" for "+d.name+" ("+k.slice(0,10)+")?")) return;
+            try{ await saveDrivers(drivers.map(x=>x.id===d.id?{...x,warnings:warnsOf(x).filter(w=>w!==k)}:x)); toast("Warning cancelled. "+d.name+" now has "+(warnsOf(d).length-1)+"/"+MAXW+"."); }
+            catch(e){ toast("Not saved."); } }},"✕") : null))) : null)));
+  });
+}
+function renderAdminAccts(){
+  const box=$("#adminAccts"); if(!box) return; box.replaceChildren();
+  if(!isOwner || !admins.length) return;
+  box.append(el("h2",null,"Admin logins"));
+  admins.forEach(a=>box.append(el("div",{class:"acc"}, el("div",{class:"acc-top"}, el("div",{class:"acc-info"}, el("div",{class:"acc-name"},a.username))),
+    el("div",{class:"acc-btns"}, el("button",{class:"acbtn",onclick:()=>newLogin("admin",a)},"Reset password")))));
+}
+function renderDriverOptions(){
+  const ad=$("#aDriver"), keep=ad.value;
+  ad.replaceChildren(el("option",{value:""},"All drivers"), ...drivers.map(d=>el("option",{value:d.id},d.name))); ad.value=keep;
+}
+
+/* ---------- admin: cleanup ---------- */
+$("#cleanBtn").onclick = async ()=>{
+  const days=Math.max(1, +$("#cleanDays").value||5);
+  const cut=new Date(); cut.setDate(cut.getDate()-days); const cutKey=dayKey(cut);
+  if(!confirm("Delete all photos from before "+cutKey+"?")) return;
+  const out=$("#cleanOut"); out.textContent="Deleting…"; let n=0;
+  try{
+    while(true){
+      const s=await db.collection("days").where("date","<",cutKey).limit(20).get();
+      if(s.empty) break;
+      for(const d of s.docs){
+        const x=d.data();
+        for(const [key,e] of Object.entries(entriesOf(x))){ for(const id of delPhotos(x.date,x.shift,x.driverId,key,e)){ await db.doc("photos/"+id).delete(); n++; } out.textContent="Deleted "+n+" photos"; }
+        if(x.fridge){ await db.doc("photos/"+fridgeId(x.date,x.shift,x.driverId)).delete(); n++; }
+        await db.doc("days/"+d.id).delete();
+      }
+    }
+    out.textContent="Done. Deleted "+n+" photos.";
+  }catch(e){ out.textContent="Stopped after "+n+". Try again."; }
+};
+})();
+</script>
+</body>
+</html>
