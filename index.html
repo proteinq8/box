@@ -252,6 +252,7 @@ textarea.in{resize:vertical;font-family:inherit;padding:11px 12px;border-radius:
 .ttemp.hot{color:var(--tomato)}
 .tcrop{object-fit:contain!important;background:#000;max-width:64px!important}
 .fok .ttemp{display:block;margin:0}
+.hotw{color:var(--tomato)}
 </style>
 </head>
 <body>
@@ -1048,9 +1049,9 @@ $("#camClose").onclick = ()=>{ if(current && current.kind==="delivery" && curren
 /* ---------- photos ---------- */
 const photoCache={};
 /* ---------- AI: read the temperature and cut out the number ---------- */
-const aiTried={}; let aiDown=false;
+const HOT_C=7; const aiTried={}; let aiDown=false;
 function tempTxt(f){ return f && typeof f.temp==="number" ? (Math.round(f.temp*10)/10)+"°"+(f.unit||"C") : ""; }
-function tempHot(f){ if(!f||typeof f.temp!=="number") return false; const c=(f.unit==="F")?(f.temp-32)*5/9:f.temp; return c>5; }
+function tempHot(f){ if(!f||typeof f.temp!=="number") return false; const c=(f.unit==="F")?(f.temp-32)*5/9:f.temp; return c>HOT_C; }
 function tempTag(f){ const t=tempTxt(f); return t ? el("b",{class:"ttemp"+(tempHot(f)?" hot":"")},t) : null; }
 const loadImg=url=>new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=url; });
 let aiChain=Promise.resolve();
@@ -1158,7 +1159,7 @@ function renderToday(){
         el("option",{value:""},"—"), ...zoneList().map(z=>el("option",{value:z},z)));
       zs.value=d.zone||"";
       rows.append(el("tr",null,
-        el("td",null, el("button",{class:"dn",onclick:()=>{ tSel=d.id; renderToday(); window.scrollTo(0,0); }}, avatar(d,"s"), el("span",null,d.name, warnBadge(d)))),
+        el("td",null, el("button",{class:"dn",onclick:()=>{ tSel=d.id; renderToday(); window.scrollTo(0,0); }}, avatar(d,"s"), el("span",null,d.name, (tempHot((dayOf(d.id,"am")||{}).fridge)||tempHot((dayOf(d.id,"pm")||{}).fridge)) ? el("b",{class:"hotw",title:"Fridge above "+HOT_C+"°C"}," ⚠️") : null, warnBadge(d)))),
         el("td",null, zs), cell(d,"am"), cell(d,"pm")));
     });
     const off=drivers.length-act.length;
@@ -1230,6 +1231,15 @@ function deadlinePassed(date, sh){
   const [h,m]=(alertTimes[sh]||"23:59").split(":").map(Number), n=new Date();
   return n.getHours()*60+n.getMinutes() >= h*60+m;
 }
+function hotFridge(){
+  const out=[];
+  ["am","pm"].forEach(sh=> drivers.filter(d=>d.active!==false).forEach(d=>{
+    const day=adminDays.find(x=>x.driverId===d.id&&x.shift===sh);
+    if(day&&day.fridge&&tempHot(day.fridge)) out.push({d, sh, f:day.fridge});
+  }));
+  return out;
+}
+const hotMsg=(d,sh,f)=>"⚠️ "+d.name+": your fridge temperature is "+tempTxt(f)+" ("+SHIFT[sh]+"). It must be "+HOT_C+"°C or less. Fix the fridge now and send a new photo.\n\n⚠️ "+d.name+": حرارة البراد عندك "+tempTxt(f)+" ("+(sh==="am"?"الفجر":"الصبح")+"). لازم تكون "+HOT_C+" درجات أو أقل. صلّح البراد هلق وابعت صورة جديدة.";
 function lateFridge(date){
   const out=[];
   ["am","pm"].forEach(sh=>{
@@ -1244,8 +1254,14 @@ function lateFridge(date){
 function renderAlerts(){
   const date=$("#tDate").value||today(), late=lateFridge(date), box=$("#alertBox"); box.replaceChildren();
   const tb=$("#adminTabBtn"); tb.replaceChildren("Admin");
+  const hot=hotFridge();
+  if(date===today() && late.length+hot.length) tb.append(el("span",{class:"dot"},String(late.length+hot.length)));
+  if(hot.length) box.append(el("div",{class:"alert"},
+    el("b",null,"🌡️ "+hot.length+" fridge"+(hot.length>1?"s":"")+" above "+HOT_C+"°C"),
+    el("ul",{style:"list-style:none;padding:0;margin:8px 0 0"}, hot.map(x=>el("li",{style:"display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.25)"},
+      el("span",null,"⚠️ "+x.d.name+(x.d.zone?" ("+x.d.zone+")":"")+": "+tempTxt(x.f)+" | "+SHIFT[x.sh]),
+      el("a",{class:"wa",href:waLink(x.d.phone||"", hotMsg(x.d,x.sh,x.f)),target:"_blank",rel:"noopener"},"Warn"))))));
   if(!late.length) return;
-  if(date===today()) tb.append(el("span",{class:"dot"},String(late.length)));
   box.append(el("div",{class:"alert"},
     el("b",null,"⚠️ "+late.length+" fridge photo"+(late.length>1?"s":"")+" missing"+(date===today()?" today":" on "+date)),
     el("ul",{style:"list-style:none;padding:0;margin:8px 0 0"}, late.map(x=>el("li",{style:"display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.25)"},
