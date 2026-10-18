@@ -993,6 +993,16 @@ function delTile(date, sh, drvId, drvName, key, e, n){
     el("div",{class:"two",style:ids.length<2?"grid-template-columns:minmax(0,1fr)":""}, ids.map((id,i)=>el("button",{onclick:()=>viewPhoto(id, drvName+" | "+SHIFT[sh]+" | Delivery "+n+" "+labels[i]+" | "+stampTxt(i?e.at2:e.at))}, lazyImg(id,labels[i]), el("span",null,labels[i])))),
     el("div",{class:"t"}, el("b",null,"Delivery "+n), drvName+", "+timeTxt(e.at2||e.at)));
 }
+// delete a saved fridge photo so the driver can take it again
+async function resetFridge(d, date, sh){
+  if(!confirm("Reset "+d.name+"'s "+SHIFT[sh]+" fridge photo ("+date+")? The driver will be able to take it again.")) return;
+  try{
+    await db.doc("days/"+dayId(date,sh,d.id)).update({fridge:firebase.firestore.FieldValue.delete()});
+    try{ await db.doc("photos/"+fridgeId(date,sh,d.id)).delete(); }catch(e){}
+    delete photoCache[fridgeId(date,sh,d.id)];
+    toast("Photo reset. "+d.name+" can take it again now.");
+  }catch(e){ toast("Not reset: "+(e.message||e.code)); }
+}
 function renderToday(){
   if(!isAdmin) return;
   const date=$("#tDate").value||today();
@@ -1009,7 +1019,7 @@ function renderToday(){
     if(!act.length) rows.append(el("tr",null,el("td",{colspan:"4"},"No active drivers. Add or activate them in Accounts.")));
     const cell=(d,sh)=>{
       const f=(dayOf(d.id,sh)||{}).fridge;
-      if(f){ const lt=isLate(f.at,sh); return el("td",null, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, "✓ "+timeTxt(f.at)+(lt?" late":""))); }
+      if(f){ const lt=isLate(f.at,sh); return el("td",null, el("span",{style:"display:inline-flex;align-items:center;gap:6px"}, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, "✓ "+timeTxt(f.at)+(lt?" late":"")), el("button",{class:"wx",style:"width:22px;height:22px;line-height:22px;font-size:11px","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"✕"))); }
       return el("td",null, deadlinePassed(date,sh) ? el("span",{class:"fno"},"Missing") : el("span",{class:"pend"},"—"));
     };
     act.forEach(d=>{
@@ -1030,7 +1040,7 @@ function renderToday(){
   const ft=$("#tFridge"); ft.replaceChildren();
   ["am","pm"].forEach(sh=>{
     const f=(dayOf(d.id,sh)||{}).fridge;
-    if(f){ const t=photoTile(fridgeId(date,sh,d.id), SHIFT[sh], timeTxt(f.at), d.name+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at)); t.className="ftile"; ft.append(t); }
+    if(f){ const t=photoTile(fridgeId(date,sh,d.id), SHIFT[sh], timeTxt(f.at), d.name+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at)); t.className="ftile"; ft.append(el("div",null,t,el("button",{class:"acbtn red",style:"width:100%;margin-top:6px",onclick:()=>resetFridge(d,date,sh)},"Reset photo"))); }
     else ft.append(el("div",{class:"ftile no"},SHIFT[sh],el("span",{style:"font-weight:400"},"Missing")));
   });
   ["am","pm"].forEach(sh=>{
