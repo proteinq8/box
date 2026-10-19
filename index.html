@@ -402,7 +402,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v20.1</div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v20.2</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -1419,6 +1419,29 @@ function openZoneSheet(d){
 }
 $("#zoneCancel").onclick=()=>$("#zoneSheet").classList.add("hidden");
 $("#zoneSheet").addEventListener("click",e=>{ if(e.target.id==="zoneSheet") $("#zoneSheet").classList.add("hidden"); });
+/* hot-fridge warning WITH the photo: uses the phone's share sheet (pick WhatsApp, then the driver) */
+function dataUrlToFile(u, name){
+  const [h,b]=u.split(","), mime=(h.match(/:(.*?);/)||[])[1]||"image/jpeg", bin=atob(b), arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new File([arr], name, {type:mime});
+}
+function hotWarnBtn(d, sh, f, date){
+  const fid=fridgeId(date,sh,d.id), msg=hotMsg(d,sh,f);
+  loadPhoto(fid).catch(()=>{}); // get the photo ready before the tap
+  return el("button",{class:"wa",style:"border:0;cursor:pointer",onclick:()=>{
+    const img=photoCache[fid];
+    try{ navigator.clipboard && navigator.clipboard.writeText(msg).catch(()=>{}); }catch(e){}
+    if(img && navigator.share && navigator.canShare){
+      const file=dataUrlToFile(img, "fridge-"+d.username+"-"+date+"-"+sh+".jpg");
+      if(navigator.canShare({files:[file]})){
+        navigator.share({files:[file], text:msg}).then(()=>toast("Sent. If the text is missing, paste it — it is copied.")).catch(e=>{ if(e && e.name!=="AbortError") location.href=waLink(d.phone||"", msg); });
+        return;
+      }
+    }
+    toast(img ? "This phone can't attach the photo. Opening WhatsApp with the text." : "Photo still loading. Opening WhatsApp with the text.");
+    location.href=waLink(d.phone||"", msg);
+  }},"📷 Warn");
+}
 function lateFridge(date){
   const out=[];
   ["am","pm"].forEach(sh=>{
@@ -1439,7 +1462,7 @@ function renderAlerts(){
     el("b",null,"🌡️ "+hot.length+" fridge"+(hot.length>1?"s":"")+" above "+HOT_C+"°C"),
     el("ul",{style:"list-style:none;padding:0;margin:8px 0 0"}, hot.map(x=>el("li",{style:"display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.25)"},
       el("span",null,"⚠️ "+x.d.name+(x.d.zone?" ("+x.d.zone+")":"")+": "+tempTxt(x.f)+" | "+SHIFT[x.sh]),
-      el("a",{class:"wa",href:waLink(x.d.phone||"", hotMsg(x.d,x.sh,x.f)),target:"_blank",rel:"noopener"},"Warn"))))));
+      hotWarnBtn(x.d, x.sh, x.f, date))))));
   if(!late.length) return;
   box.append(el("div",{class:"alert"},
     el("b",null,"⚠️ "+late.length+" fridge photo"+(late.length>1?"s":"")+" missing"+(date===today()?" today":" on "+date)),
