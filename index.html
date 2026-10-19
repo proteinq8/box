@@ -402,7 +402,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v20.2</div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v20.3</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -719,7 +719,7 @@ function copyText(t){
   try{ const ta=document.createElement("textarea"); ta.value=t; ta.setAttribute("readonly",""); ta.style.cssText="position:fixed;left:-9999px;top:0"; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,999999); document.execCommand("copy"); ta.remove(); }catch(e){}
 }
 document.addEventListener("click", e=>{
-  const a=e.target.closest && e.target.closest('a[href*="whatsapp.com/send"]'); if(!a) return;
+  const a=e.target.closest && e.target.closest('a[href*="whatsapp.com/send"]'); if(!a || a.dataset.img) return;
   try{ const t=new URL(a.href).searchParams.get("text"); if(t){ copyText(t); toast("Message copied too. If the chat opens empty, tap and hold, then Paste."); } }catch(err){}
 }, true);
 const SHIFT = {am:"Dawn", pm:"Late morning"};
@@ -796,8 +796,16 @@ function showLogin(msg){
     $("#adminTabBtn").classList.toggle("hidden", !isAdmin);
     start();
     showTab(isAdmin?"admin":"driver");
+    openPhotoHash();
   });
 })();
+function openPhotoHash(){
+  const m=location.hash.match(/^#p=([^&]+)/); if(!m) return;
+  const id=decodeURIComponent(m[1]); history.replaceState(null,"",location.pathname+location.search);
+  const parts=id.split("_");
+  setTimeout(()=>{ const drv=drivers.find(x=>x.id===parts[2]); viewPhoto(id, "Fridge photo | "+(drv?drv.name+" | ":"")+parts[0]+" | "+(parts[1]==="am"?"Dawn":"Late morning")); },800);
+}
+window.addEventListener("hashchange",()=>{ if(started) openPhotoHash(); });
 function start(){
   if(started){ renderDriver(); renderAdminGate(); if(isAdmin){ renderDriverOptions(); renderDrivers(); subAdmin(); } return; }
   started=true;
@@ -1425,22 +1433,27 @@ function dataUrlToFile(u, name){
   for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
   return new File([arr], name, {type:mime});
 }
+const photoLink = fid => location.origin+location.pathname+"#p="+encodeURIComponent(fid);
+function pngBlob(dataUrl){
+  return new Promise((ok,no)=>{ const im=new Image(); im.onload=()=>{ const c=document.createElement("canvas"); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext("2d").drawImage(im,0,0); c.toBlob(b=>b?ok(b):no(new Error("png")),"image/png"); }; im.onerror=no; im.src=dataUrl; });
+}
+/* one tap: opens the driver's WhatsApp chat with the warning + a link to the photo,
+   and copies the photo so it can also be pasted into the chat */
 function hotWarnBtn(d, sh, f, date){
-  const fid=fridgeId(date,sh,d.id), msg=hotMsg(d,sh,f);
-  loadPhoto(fid).catch(()=>{}); // get the photo ready before the tap
-  return el("button",{class:"wa",style:"border:0;cursor:pointer",onclick:()=>{
+  const fid=fridgeId(date,sh,d.id);
+  const msg=hotMsg(d,sh,f)+"\n\n📷 Photo / الصورة:\n"+photoLink(fid);
+  loadPhoto(fid).catch(()=>{});
+  const a=el("a",{class:"wa",href:waLink(d.phone||"", msg),target:"_blank",rel:"noopener"},"📷 Warn");
+  a.dataset.img="1";
+  a.addEventListener("click",()=>{
     const img=photoCache[fid];
-    try{ navigator.clipboard && navigator.clipboard.writeText(msg).catch(()=>{}); }catch(e){}
-    if(img && navigator.share && navigator.canShare){
-      const file=dataUrlToFile(img, "fridge-"+d.username+"-"+date+"-"+sh+".jpg");
-      if(navigator.canShare({files:[file]})){
-        navigator.share({files:[file], text:msg}).then(()=>toast("Sent. If the text is missing, paste it — it is copied.")).catch(e=>{ if(e && e.name!=="AbortError") location.href=waLink(d.phone||"", msg); });
-        return;
-      }
+    if(img && navigator.clipboard && window.ClipboardItem){
+      try{ navigator.clipboard.write([new ClipboardItem({"image/png":pngBlob(img)})])
+        .then(()=>toast("Photo copied. In the chat: tap and hold → Paste to add it."))
+        .catch(()=>{}); }catch(e){}
     }
-    toast(img ? "This phone can't attach the photo. Opening WhatsApp with the text." : "Photo still loading. Opening WhatsApp with the text.");
-    location.href=waLink(d.phone||"", msg);
-  }},"📷 Warn");
+  });
+  return a;
 }
 function lateFridge(date){
   const out=[];
