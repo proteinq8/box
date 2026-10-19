@@ -1302,6 +1302,11 @@ function renderAlerts(){
     el("ul",{style:"list-style:none;padding:0;margin:8px 0 0"}, late.map(x=>el("li",{style:"display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.25)"},
       el("span",null,x.d.name+(x.d.zone?" ("+x.d.zone+")":"")+": "+SHIFT[x.sh]),
       el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"}, warnLink(x.d, date, x.sh),
+        (()=>{ const key=date+"_"+x.sh; if(!isOwner || !warnsOf(x.d).includes(key)) return null;
+          return el("button",{class:"wa",style:"background:#fff;color:var(--tomato);border:0;cursor:pointer",onclick:async()=>{
+            if(!confirm("Cancel this warning for "+x.d.name+"?")) return;
+            try{ await saveDrivers(drivers.map(y=>y.id===x.d.id?{...y,warnings:warnsOf(y).filter(w=>w!==key)}:y)); toast("Warning cancelled. "+x.d.name+" now has "+(warnsOf(x.d).length-1)+"/"+MAXW+"."); }
+            catch(e){ toast("Not saved."); } }},"✕ Cancel"); })(),
         (()=>{ const ws=warnsOf(x.d), key=date+"_"+x.sh, n=ws.includes(key)?ws.indexOf(key)+1:ws.length+1; return n>=MAXW ? deductLink(x.d,date,x.sh,n) : null; })())))),
     el("a",{class:"wa",style:"display:block;text-align:center;margin-top:10px",href:waLink("", "Fridge photo missing ("+date+"):\n"+late.map(x=>"- "+x.d.name+(x.d.zone?" "+x.d.zone:"")+": "+SHIFT[x.sh]).join("\n")),target:"_blank",rel:"noopener"},"Send full list on WhatsApp")));
 }
