@@ -253,6 +253,15 @@ textarea.in{resize:vertical;font-family:inherit;padding:11px 12px;border-radius:
 .tcrop{object-fit:contain!important;background:#000;max-width:64px!important}
 .fok .ttemp{display:block;margin:0}
 .hotw{color:var(--tomato)}
+tr.rmiss td{background:#FCE3DE}
+tr.rmiss td:first-child{box-shadow:inset 6px 0 0 #C8402A}
+tr.rhot td{background:#FFE9B8}
+tr.rhot td:first-child{box-shadow:inset 6px 0 0 #E08A00}
+tr.rmiss.rhot td{background:linear-gradient(90deg,#FCE3DE,#FFE9B8)}
+tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin:8px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
 </style>
 </head>
 <body>
@@ -341,7 +350,7 @@ textarea.in{resize:vertical;font-family:inherit;padding:11px 12px;border-radius:
       <label class="f" style="margin-bottom:12px">Date<input class="in" type="date" id="tDate"></label>
       <div id="tList">
         <div class="count" id="tTimes" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"></div>
-        <div class="tablewrap"><table class="ftable ztable"><thead><tr><th>Driver</th><th>Zone</th><th>Dawn</th><th>Late AM</th></tr></thead><tbody id="tRows"></tbody></table></div>
+        <div class="legend"><span><i style="background:#FCE3DE;border:2px solid #C8402A"></i>📷 No photo</span><span><i style="background:#FFE9B8;border:2px solid #E08A00"></i>🌡️ Above 7°C</span></div><div class="tablewrap"><table class="ftable ztable"><thead><tr><th>Driver</th><th>Zone</th><th>Dawn</th><th>Late AM</th></tr></thead><tbody id="tRows"></tbody></table></div>
         <div class="count" id="tOff"></div>
       </div>
       <div id="tDetail" class="hidden">
@@ -1182,7 +1191,9 @@ function renderToday(){
       const zs=el("select",{"aria-label":"Zone for "+d.name,onchange:e=>saveDrivers(drivers.map(x=>x.id===d.id?{...x,zone:e.target.value}:x))},
         el("option",{value:""},"—"), ...zoneList().map(z=>el("option",{value:z},z)));
       zs.value=d.zone||"";
-      rows.append(el("tr",null,
+      const fa=(dayOf(d.id,"am")||{}).fridge, fp=(dayOf(d.id,"pm")||{}).fridge;
+      const miss=(!fa&&deadlinePassed(date,"am"))||(!fp&&deadlinePassed(date,"pm")), hot=tempHot(fa)||tempHot(fp);
+      rows.append(el("tr",{class:(miss?"rmiss ":"")+(hot?"rhot":"")},
         el("td",null, el("button",{class:"dn",onclick:()=>{ tSel=d.id; renderToday(); window.scrollTo(0,0); }}, avatar(d,"s"), el("span",null,d.name, (tempHot((dayOf(d.id,"am")||{}).fridge)||tempHot((dayOf(d.id,"pm")||{}).fridge)) ? el("b",{class:"hotw",title:"Fridge above "+HOT_C+"°C"}," ⚠️") : null, warnBadge(d)))),
         el("td",null, zs), cell(d,"am"), cell(d,"pm")));
     });
