@@ -309,6 +309,20 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 .sact{display:flex;gap:6px;justify-content:center}
 .tbtn{border:1px solid var(--line);background:var(--card);border-radius:999px;font-size:12px;font-weight:600;padding:3px 10px;cursor:pointer;color:var(--ink)}
 .tbtn.danger{color:var(--tomato);border-color:#EDB9AD}
+.zchip{flex:none;padding:5px 12px;border-radius:999px;background:var(--leaf-soft);color:var(--leaf);font-size:14px;font-weight:700;border:1px solid transparent}
+.zchip.none{background:var(--line);color:var(--muted)}
+.zchip.edit{border:1.5px dashed var(--leaf);background:var(--card);cursor:pointer;animation:zpulse 1.6s ease-in-out infinite}
+@keyframes zpulse{50%{box-shadow:0 0 0 4px var(--leaf-soft)}}
+.zbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
+.zbar.on{justify-content:space-between;align-items:center;gap:8px;background:var(--leaf-soft);border-radius:14px;padding:8px 10px;font-size:14px;font-weight:600;color:var(--leaf)}
+.zopen{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
+.zdone{border:0;background:var(--leaf);color:#fff;border-radius:999px;padding:7px 14px;font-weight:700;cursor:pointer;flex:none}
+.zgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.zcell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:14px;border:1px solid var(--line);background:var(--paper);cursor:pointer;min-width:0}
+.zcell b{font-size:18px}
+.zcell span{font-size:12px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zcell.taken{background:var(--card)}
+.zcell.cur{background:var(--leaf);border-color:var(--leaf);cursor:default}.zcell.cur b,.zcell.cur span{color:#fff}
 @media (max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .stile.hot, :root:not([data-theme="light"]) .stat.hot{background:#3A2C12;border-color:#6B5220}
   :root:not([data-theme="light"]) .stat.hot b{color:#F2B54A} :root:not([data-theme="light"]) .flag.hot, :root:not([data-theme="light"]) .pill.warn{background:#4A3713;color:#F5C76A}
@@ -388,7 +402,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v20</div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v20.1</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -402,7 +416,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       <label class="f" style="margin-bottom:12px">Date<input class="in" type="date" id="tDate"></label>
       <div id="tList">
         <div class="count" id="tTimes" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"></div>
-        <div class="stats" id="tStats"></div><div class="dlist" id="tRows"></div>
+        <div class="stats" id="tStats"></div><div id="tZoneBar"></div><div class="dlist" id="tRows"></div>
         <div class="count" id="tOff"></div>
       </div>
       <div id="tDetail" class="hidden">
@@ -504,6 +518,14 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 <input type="file" id="selfieCam" accept="image/*" capture="user" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
 <input type="file" id="nativeCam" accept="image/*" capture="environment" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
 <div class="viewer hidden" id="viewer"><img id="vImg" alt=""><p id="vTxt"></p></div>
+<div class="sheet hidden" id="zoneSheet" role="dialog" aria-modal="true" aria-labelledby="zoneTitle">
+  <div class="sheet-box">
+    <h2 id="zoneTitle" style="margin:0 0 4px;font-size:20px"></h2>
+    <p id="zoneSub" style="margin:0 0 12px;color:var(--muted);font-size:14px"></p>
+    <div class="zgrid" id="zoneGrid"></div>
+    <button class="btn ghost" id="zoneCancel" style="width:100%;margin-top:12px">Cancel</button>
+  </div>
+</div>
 <div class="sheet hidden" id="dedSheet" role="dialog" aria-modal="true" aria-labelledby="dedTitle">
   <div class="sheet-box">
     <h2 id="dedTitle" style="margin-top:0">Salary deduction</h2>
@@ -1278,9 +1300,7 @@ function renderToday(){
     };
     let nA=0,nP=0,nMiss=0,nHot=0;
     act.forEach(d=>{
-      const zs=el("select",{class:"zsel","aria-label":"Zone for "+d.name,onchange:e=>saveDrivers(drivers.map(x=>x.id===d.id?{...x,zone:e.target.value}:x))},
-        el("option",{value:""},"Zone"), ...zoneList().map(z=>el("option",{value:z},z)));
-      zs.value=d.zone||"";
+      const zs=zoneEdit ? el("button",{class:"zchip edit",onclick:()=>openZoneSheet(d)},(d.zone||"No zone")+" ✎") : el("span",{class:"zchip"+(d.zone?"":" none")},d.zone||"No zone");
       const fa=(dayOf(d.id,"am")||{}).fridge, fp=(dayOf(d.id,"pm")||{}).fridge;
       if(fa) nA++; if(fp) nP++;
       const miss=(!fa&&deadlinePassed(date,"am"))||(!fp&&deadlinePassed(date,"pm")), hot=tempHot(fa)||tempHot(fp);
@@ -1293,6 +1313,9 @@ function renderToday(){
         el("div",{class:"shifts"}, tile(d,"am"), tile(d,"pm"))));
     });
     const st=(n,l,c)=>el("div",{class:"stat "+(c||"")}, el("b",null,n), el("span",null,l));
+    $("#tZoneBar").replaceChildren(zoneEdit
+      ? el("div",{class:"zbar on"}, el("span",null,"Tap a driver's zone to change it"), el("button",{class:"zdone",onclick:()=>{ zoneEdit=false; renderToday(); }},"Done ✓"))
+      : el("div",{class:"zbar"}, el("button",{class:"zopen",onclick:()=>{ zoneEdit=true; renderToday(); }},"⇄ Change zones")));
     $("#tStats").replaceChildren(
       st(nA+"/"+act.length,"Dawn photos"), st(nP+"/"+act.length,"Late AM photos"),
       st(String(nMiss),"Missing", nMiss?"bad":""), st(String(nHot),"Above "+HOT_C+"°C", nHot?"hot":""));
@@ -1374,6 +1397,28 @@ function hotFridge(){
   return out;
 }
 const hotMsg=(d,sh,f)=>"⚠️ "+d.name+": your fridge temperature is "+tempTxt(f)+" ("+SHIFT[sh]+"). It must be "+HOT_C+"°C or less. Fix the fridge now and send a new photo.\n\n⚠️ "+d.name+": حرارة البراد عندك "+tempTxt(f)+" ("+(sh==="am"?"الفجر":"الصبح")+"). لازم تكون "+HOT_C+" درجات أو أقل. صلّح البراد هلق وابعت صورة جديدة.";
+let zoneEdit=false;
+function openZoneSheet(d){
+  $("#zoneTitle").textContent="Move "+d.name;
+  $("#zoneSub").textContent="Now in "+(d.zone||"no zone")+". Pick the new zone. If someone is there, they swap.";
+  const g=$("#zoneGrid"); g.replaceChildren();
+  zoneList().forEach(z=>{
+    const who=drivers.find(x=>x.zone===z && x.active!==false && x.id!==d.id), cur=d.zone===z;
+    const btn=el("button",{class:"zcell"+(cur?" cur":"")+(who?" taken":""),onclick:async()=>{ if(cur) return;
+      const msg=who ? "Swap zones?\n\n"+d.name+" → "+z+"\n"+who.name+" → "+(d.zone||"no zone") : "Move "+d.name+" to "+z+"?";
+      if(!confirm(msg)) return;
+      try{
+        await saveDrivers(drivers.map(x=> x.id===d.id ? {...x,zone:z} : (who && x.id===who.id) ? {...x,zone:d.zone||""} : x));
+        $("#zoneSheet").classList.add("hidden");
+        toast(who ? "Swapped: "+d.name+" ⇄ "+who.name : d.name+" moved to "+z);
+      }catch(e){ toast("Not saved. Try again."); }
+    }}, el("b",null,z), el("span",null, cur ? "Current" : who ? who.name : "Empty"));
+    if(cur) btn.disabled=true; g.append(btn);
+  });
+  $("#zoneSheet").classList.remove("hidden");
+}
+$("#zoneCancel").onclick=()=>$("#zoneSheet").classList.add("hidden");
+$("#zoneSheet").addEventListener("click",e=>{ if(e.target.id==="zoneSheet") $("#zoneSheet").classList.add("hidden"); });
 function lateFridge(date){
   const out=[];
   ["am","pm"].forEach(sh=>{
