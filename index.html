@@ -336,7 +336,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v19.3</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -488,7 +488,7 @@ const CFG={apiKey:"AIzaSyD_Rh6fUiGFEVPgU6YTyocXjfdzOORwoyY",authDomain:"proteinq
 const MODELS=["gemini-2.5-flash-lite","gemini-flash-lite-latest","gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash"];
 const genCfg=model=>Object.assign({responseMimeType:"application/json",temperature:0,maxOutputTokens:200}, /2\.5/.test(model)?{thinkingConfig:{thinkingBudget:0}}:{});
 const PROMPT='This photo should show the temperature display (digital screen or dial) of a delivery car fridge or thermometer. Ignore the black text band at the bottom of the photo (it is a time stamp, not the temperature). Find the temperature reading. Reply only JSON: {"found": true|false, "temp": number or null, "unit": "C" or "F", "box_2d": [ymin, xmin, ymax, xmax]} where box_2d is the tight box around the temperature digits, normalized 0-1000. If there is no readable temperature, found=false and temp=null.';
-const PROMPT_BOX='Find the temperature number on the thermometer or fridge display in this photo. Reply only JSON: {"box_2d": [ymin, xmin, ymax, xmax]} with integers normalized 0-1000, a tight box around the temperature digits only.';
+const PROMPT_BOX='Detect the temperature reading (the digits shown on the thermometer or fridge display screen). Output a JSON list where each entry contains the 2D bounding box in "box_2d" and a text label in "label". Only one entry: the temperature digits. Ignore the black text band at the bottom of the photo.';
 const BOX_MODELS=["gemini-2.5-flash","gemini-flash-latest","gemini-2.5-flash-lite","gemini-2.0-flash"];
 let sdk=null;
 async function loadSdk(){
@@ -502,7 +502,11 @@ async function loadSdk(){
   }
   return null;
 }
-function parse(t){ try{ const m=String(t).match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; } }
+function parse(t){
+  t=String(t||"").replace(/```(json)?/g,"").trim(); window.__aiRaw=t.slice(0,300);
+  try{ const j=JSON.parse(t); return Array.isArray(j) ? (j[0] && typeof j[0]==="object" && !Array.isArray(j[0]) ? j[0] : {box_2d:j}) : j; }catch(e){}
+  try{ const m=t.match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; }
+}
 async function viaSdk(model,b64,prompt){
   const m=sdk.M.getGenerativeModel(sdk.ai,{model, generationConfig:genCfg(model)});
   const r=await m.generateContent([prompt||PROMPT,{inlineData:{data:b64,mimeType:"image/jpeg"}}]);
@@ -524,8 +528,8 @@ window.aiReadTemp=async (b64,mode)=>{
     let busy=false;
     for(const model of list){
       for(const fn of (sdk?[viaSdk,viaRest]:[viaRest])){
-        try{ const r=await fn(model,b64,prompt); if(r){ try{ localStorage.setItem(key,model); }catch(e){} return r; } }
-        catch(e){ const m=String(e&&e.message||e); console.warn("AI",model,fn.name,m); if(/429|quota|exhausted|overloaded|503/i.test(m)){ busy=true; break; } }
+        try{ const r=await fn(model,b64,prompt); if(r){ try{ localStorage.setItem(key,model); }catch(e){} window.__aiModel=model; return r; } }
+        catch(e){ const m=String(e&&e.message||e); console.warn("AI",model,fn.name,m); window.__aiErr=model+": "+m.slice(0,160); if(/429|quota|exhausted|overloaded|503/i.test(m)){ busy=true; break; } }
       }
       if(busy) break;
     }
@@ -656,6 +660,7 @@ const store = {
   set(k,v){ MEM[k]=v; try{ localStorage.setItem(k,v); }catch(e){} }
 };
 function el(tag, attrs, ...kids){ const e=document.createElement(tag); if(attrs) for(const k in attrs){ if(k==="class") e.className=attrs[k]; else if(k.startsWith("on")) e.addEventListener(k.slice(2),attrs[k]); else e.setAttribute(k,attrs[k]); } kids.flat().forEach(c=>{ if(c==null) return; e.append(c.nodeType?c:document.createTextNode(c)); }); return e; }
+function longToast(msg){ const t=$("#toast"); t.textContent=msg; t.style.whiteSpace="pre-wrap"; t.style.fontSize="13px"; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t=setTimeout(()=>{ t.classList.add("hidden"); t.style.whiteSpace=""; t.style.fontSize=""; },12000); }
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.add("hidden"),3000); }
 async function sha(text){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 const today = () => dayKey(new Date());
@@ -1078,14 +1083,14 @@ function tempTag(f){ const t=tempTxt(f); return t ? el("b",{class:"ttemp"+(tempH
 const loadImg=url=>new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=url; });
 /* up to 4 readings at the same time; a failed one can be tried again after 1 minute */
 let aiActive=0; const aiQueue=[];
-function aiFridge(did, url, pid, force){
+function aiFridge(did, url, pid, force, done){
   const t=aiTried[did]; if(!force && t && (t===true || Date.now()-t<60000)) return; aiTried[did]=true;
-  aiQueue.push({did,url,pid}); aiPump();
+  aiQueue.push({did,url,pid,done}); aiPump();
 }
 function aiPump(){
   while(aiActive<4 && aiQueue.length){
     const j=aiQueue.shift(); aiActive++;
-    (async()=>{ const url=j.url || (j.pid ? await loadPhoto(j.pid) : ""); const u=await aiRead(url); if(u) await aiSave(j.did,u); else aiTried[j.did]=Date.now(); })()
+    (async()=>{ const url=j.url || (j.pid ? await loadPhoto(j.pid) : ""); if(!url){ j.done&&j.done("Photo not found."); return; } const u=await aiRead(url); if(u){ await aiSave(j.did,u); j.done&&j.done("Done: "+(u.temp!==undefined?u.temp+"°"+(u.unit||"C"):"no temperature")+(u.crop?" + number photo ✓":" | number photo NOT found")+"\n"+u._dbg); } else { aiTried[j.did]=Date.now(); j.done&&j.done(aiRead.err||"AI failed"); } })()
       .catch(e=>{ console.warn("AI",e); aiTried[j.did]=Date.now(); })
       .finally(()=>{ aiActive--; aiPump(); });
   }
@@ -1108,7 +1113,7 @@ async function aiRead(url){
   c.getContext("2d").drawImage(img,0,0,c.width,c.height);
   const b64=c.toDataURL("image/jpeg",.8).split(",")[1];
   const r=await window.aiReadTemp(b64);
-  if(!r) return null;
+  if(!r){ aiRead.err="AI did not answer: "+(window.__aiErr||"no reply"); return null; }
   const out={ai: r.found ? "ok" : "none"};
   if(typeof r.temp==="number" && isFinite(r.temp)){ out.temp=r.temp; out.unit=(r.unit==="F")?"F":"C"; }
   let b=normBox(r.box_2d||r.box||r.bbox);
@@ -1124,10 +1129,12 @@ async function aiRead(url){
       out.crop=cc.toDataURL("image/jpeg",.8);
     }
   }
-  if(out.temp!==undefined && !out.crop) out.noCrop=true;
+  if(out.temp!==undefined && !out.crop) out.noCrop=3;
+  out._dbg=(window.__aiModel||"?")+" | box: "+(b?b.map(Math.round).join(","):"none")+" | "+(window.__aiRaw||"");
   return out;
 }
 async function aiSave(did, u){
+  u={...u}; delete u._dbg; if(u.crop) u.noCrop=false;
   const ref=db.doc("days/"+did), snap=await ref.get();
   if(!snap.exists || !snap.data().fridge || !snap.data().fridge.at) return; // photo was reset meanwhile
   const upd={}; for(const k in u) upd["fridge."+k]=u[k];
@@ -1199,7 +1206,7 @@ function renderToday(){
     if(!act.length) rows.append(el("tr",null,el("td",{colspan:"4"},"No active drivers. Add or activate them in Accounts.")));
     const cell=(d,sh)=>{
       const f=(dayOf(d.id,sh)||{}).fridge;
-      if(f){ const lt=isLate(f.at,sh); if(!f.ai || (f.ai==="ok" && !f.crop && !f.noCrop)) aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id)); return el("td",null, el("span",{style:"display:inline-flex;flex-direction:column;align-items:center;gap:4px"}, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, f.crop?el("img",{class:"tcrop",src:f.crop,alt:"Temperature"}):null, tempTag(f), "✓ "+timeTxt(f.at)+(lt?" late":"")), (isAdmin && typeof f.temp!=="number") ? el("button",{class:"link",style:"padding:0;font-size:13px",onclick:()=>{ toast("Reading temperature…"); aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id), true); }},"🔄 Read") : null, isOwner ? el("button",{class:"wx",style:"width:22px;height:22px;line-height:22px;font-size:11px","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"✕") : null)); }
+      if(f){ const lt=isLate(f.at,sh); if(!f.ai || (f.ai==="ok" && !f.crop && f.noCrop!==3)) aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id)); return el("td",null, el("span",{style:"display:inline-flex;flex-direction:column;align-items:center;gap:4px"}, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, f.crop?el("img",{class:"tcrop",src:f.crop,alt:"Temperature"}):null, tempTag(f), "✓ "+timeTxt(f.at)+(lt?" late":"")), (isAdmin && (typeof f.temp!=="number" || !f.crop)) ? el("button",{class:"link",style:"padding:0;font-size:13px",onclick:()=>{ longToast("Reading… wait a few seconds"); aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id), true, msg=>longToast(msg)); }},"🔄 Read") : null, isOwner ? el("button",{class:"wx",style:"width:22px;height:22px;line-height:22px;font-size:11px","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"✕") : null)); }
       return el("td",null, deadlinePassed(date,sh) ? el("span",{class:"fno"},"Missing") : el("span",{class:"pend"},"—"));
     };
     act.forEach(d=>{
