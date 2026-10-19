@@ -476,7 +476,8 @@ textarea.in{resize:vertical;font-family:inherit;padding:11px 12px;border-radius:
 <script type="module">
 /* Firebase AI Logic (Gemini) reads the fridge temperature from the photo */
 const CFG={apiKey:"AIzaSyD_Rh6fUiGFEVPgU6YTyocXjfdzOORwoyY",authDomain:"proteinq8-box.firebaseapp.com",projectId:"proteinq8-box",storageBucket:"proteinq8-box.firebasestorage.app",messagingSenderId:"957841978002",appId:"1:957841978002:web:0692e6976bf966d9876c4b"};
-const MODELS=["gemini-flash-latest","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.0-flash"];
+const MODELS=["gemini-2.5-flash-lite","gemini-flash-lite-latest","gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash"];
+const genCfg=model=>Object.assign({responseMimeType:"application/json",temperature:0,maxOutputTokens:200}, /2\.5/.test(model)?{thinkingConfig:{thinkingBudget:0}}:{});
 const PROMPT='This photo should show the temperature display (digital screen or dial) of a delivery car fridge or thermometer. Ignore the black text band at the bottom of the photo (it is a time stamp, not the temperature). Find the temperature reading. Reply only JSON: {"found": true|false, "temp": number or null, "unit": "C" or "F", "box_2d": [ymin, xmin, ymax, xmax]} where box_2d is the tight box around the temperature digits, normalized 0-1000. If there is no readable temperature, found=false and temp=null.';
 let sdk=null;
 async function loadSdk(){
@@ -492,26 +493,32 @@ async function loadSdk(){
 }
 function parse(t){ try{ const m=String(t).match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; } }
 async function viaSdk(model,b64){
-  const m=sdk.M.getGenerativeModel(sdk.ai,{model, generationConfig:{responseMimeType:"application/json",temperature:0}});
+  const m=sdk.M.getGenerativeModel(sdk.ai,{model, generationConfig:genCfg(model)});
   const r=await m.generateContent([PROMPT,{inlineData:{data:b64,mimeType:"image/jpeg"}}]);
   return parse(r.response.text());
 }
 async function viaRest(model,b64){
   const r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${CFG.projectId}/models/${model}:generateContent`,{method:"POST",
     headers:{"Content-Type":"application/json","x-goog-api-key":CFG.apiKey,"X-Firebase-AppId":CFG.appId},
-    body:JSON.stringify({contents:[{role:"user",parts:[{text:PROMPT},{inlineData:{mimeType:"image/jpeg",data:b64}}]}],generationConfig:{responseMimeType:"application/json",temperature:0}})});
+    body:JSON.stringify({contents:[{role:"user",parts:[{text:PROMPT},{inlineData:{mimeType:"image/jpeg",data:b64}}]}],generationConfig:genCfg(model)})});
   if(!r.ok) throw new Error("AI "+r.status+" "+(await r.text()).slice(0,200));
   const j=await r.json(); return parse(((j.candidates||[])[0]||{}).content?.parts?.map(p=>p.text||"").join(""));
 }
 window.aiReady=(async()=>{ sdk=await loadSdk(); return true; })();
 window.aiReadTemp=async b64=>{
-  let good=null; try{ good=localStorage.getItem("aiModel"); }catch(e){}
+  let good=null; try{ good=localStorage.getItem("aiModel2"); }catch(e){}
   const list=good?[good,...MODELS.filter(x=>x!==good)]:MODELS;
-  for(const model of list){
-    for(const fn of (sdk?[viaSdk,viaRest]:[viaRest])){
-      try{ const r=await fn(model,b64); if(r){ try{ localStorage.setItem("aiModel",model); }catch(e){} return r; } }
-      catch(e){ console.warn("AI",model,fn.name,e&&e.message); }
+  for(let round=0; round<3; round++){
+    let busy=false;
+    for(const model of list){
+      for(const fn of (sdk?[viaSdk,viaRest]:[viaRest])){
+        try{ const r=await fn(model,b64); if(r){ try{ localStorage.setItem("aiModel2",model); }catch(e){} return r; } }
+        catch(e){ const m=String(e&&e.message||e); console.warn("AI",model,fn.name,m); if(/429|quota|exhausted|overloaded|503/i.test(m)){ busy=true; break; } }
+      }
+      if(busy) break;
     }
+    if(!busy) return null;
+    await new Promise(r=>setTimeout(r,3000*(round+1))); // too many at once: wait a moment and try again
   }
   return null;
 };
@@ -1013,7 +1020,7 @@ function stamp(source, sw, sh){
 $("#nativeCam").addEventListener("change", e=>{
   const f=e.target.files[0]; if(!f||!current) return;
   if(f.lastModified && Date.now()-f.lastModified > 3*60*1000){ toast("Take a new photo with the camera now. Old photos are not accepted."); e.target.value=""; return; }
-  const img=new Image(); img.onload=()=>{ captured=stamp(img,img.naturalWidth,img.naturalHeight); captured.orig=img; captured.crop=null; $("#shot").src=captured.url; camView("confirm"); startCrop(); };
+  const img=new Image(); img.onload=()=>{ captured=stamp(img,img.naturalWidth,img.naturalHeight); captured.orig=img; captured.crop=null; if(current&&current.kind==="fridge"){ const cp=captured; cp.aiP=aiRead(cp.url).catch(()=>null); } $("#shot").src=captured.url; camView("confirm"); startCrop(); };
   img.src=URL.createObjectURL(f);
 });
 $("#retake").onclick = ()=>{ captured=null; $("#cropBox").classList.add("hidden"); $("#cropHint").classList.add("hidden"); shootNow(); };
@@ -1028,9 +1035,12 @@ $("#saveShot").onclick = async ()=>{
     if(c.kind==="fridge"){
       const fid=fridgeId(date,sh,drv.id);
       await db.doc("photos/"+fid).set({img:captured.url, driverId:drv.id, date, shift:sh}); photoCache[fid]=captured.url;
-      const f={fridge:captured.crop?{at:captured.at, crop:captured.crop}:{at:captured.at}};
+      const cp=captured, aiP=cp.aiP||Promise.resolve(null);
+      const pre=await Promise.race([aiP, new Promise(r=>setTimeout(()=>r(null),1500))]);
+      const f={fridge:{at:cp.at, ...(pre||{})}};
       if(myDays[sh]) await ref.update(f); else await ref.set({...base, entries:{}, ...f});
-      toast("Fridge temperature saved"); const u=captured.url; closeCam(); delete aiTried[did]; aiFridge(did, u);
+      toast("Fridge temperature saved"); closeCam();
+      if(!pre){ aiTried[did]=true; aiP.then(u=>u ? aiSave(did,u) : (delete aiTried[did], aiFridge(did, cp.url))).catch(()=>{}); }
     }else{
       const [idBox,idDrop]=delPhotos(date,sh,drv.id,c.key,{v:2});
       await db.doc("photos/"+idBox).set({img:c.shots[0].url, driverId:drv.id, date, shift:sh}); photoCache[idBox]=c.shots[0].url;
@@ -1049,26 +1059,36 @@ $("#camClose").onclick = ()=>{ if(current && current.kind==="delivery" && curren
 /* ---------- photos ---------- */
 const photoCache={};
 /* ---------- AI: read the temperature and cut out the number ---------- */
-const HOT_C=7; const aiTried={}; let aiDown=false;
+const HOT_C=7; const aiTried={};
 function tempTxt(f){ return f && typeof f.temp==="number" ? (Math.round(f.temp*10)/10)+"°"+(f.unit||"C") : ""; }
 function tempHot(f){ if(!f||typeof f.temp!=="number") return false; const c=(f.unit==="F")?(f.temp-32)*5/9:f.temp; return c>HOT_C; }
 function tempTag(f){ const t=tempTxt(f); return t ? el("b",{class:"ttemp"+(tempHot(f)?" hot":"")},t) : null; }
 const loadImg=url=>new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=url; });
-let aiChain=Promise.resolve();
-function aiFridge(did, url, pid){
-  if(aiTried[did]) return; aiTried[did]=1;
-  aiChain=aiChain.then(async()=>aiRun(did, url || (pid ? await loadPhoto(pid) : ""))).catch(e=>console.warn("AI",e));
+/* up to 4 readings at the same time; a failed one can be tried again after 1 minute */
+let aiActive=0; const aiQueue=[];
+function aiFridge(did, url, pid, force){
+  const t=aiTried[did]; if(!force && t && (t===true || Date.now()-t<60000)) return; aiTried[did]=true;
+  aiQueue.push({did,url,pid}); aiPump();
 }
-async function aiRun(did, url){
-  if(!url || aiDown) return;
-  const ready=await (window.aiReady||Promise.resolve(false)); if(!ready||!window.aiReadTemp) return;
-  const img=await loadImg(url), W=img.naturalWidth, H=img.naturalHeight, k=Math.min(1,1024/Math.max(W,H));
+function aiPump(){
+  while(aiActive<4 && aiQueue.length){
+    const j=aiQueue.shift(); aiActive++;
+    (async()=>{ const url=j.url || (j.pid ? await loadPhoto(j.pid) : ""); const u=await aiRead(url); if(u) await aiSave(j.did,u); else aiTried[j.did]=Date.now(); })()
+      .catch(e=>{ console.warn("AI",e); aiTried[j.did]=Date.now(); })
+      .finally(()=>{ aiActive--; aiPump(); });
+  }
+}
+/* send a small copy of the photo to the AI; returns {ai,temp,unit,crop} or null */
+async function aiRead(url){
+  if(!url) return null;
+  const ready=await (window.aiReady||Promise.resolve(false)); if(!ready||!window.aiReadTemp) return null;
+  const img=await loadImg(url), W=img.naturalWidth, H=img.naturalHeight, k=Math.min(1,768/Math.max(W,H));
   const c=document.createElement("canvas"); c.width=Math.round(W*k); c.height=Math.round(H*k);
   c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-  const r=await window.aiReadTemp(c.toDataURL("image/jpeg",.85).split(",")[1]);
-  if(!r){ aiDown=true; return; }
-  const upd={"fridge.ai": r.found ? "ok" : "none"};
-  if(typeof r.temp==="number" && isFinite(r.temp)){ upd["fridge.temp"]=r.temp; upd["fridge.unit"]=(r.unit==="F")?"F":"C"; }
+  const r=await window.aiReadTemp(c.toDataURL("image/jpeg",.8).split(",")[1]);
+  if(!r) return null;
+  const out={ai: r.found ? "ok" : "none"};
+  if(typeof r.temp==="number" && isFinite(r.temp)){ out.temp=r.temp; out.unit=(r.unit==="F")?"F":"C"; }
   const b=r.box_2d;
   if(Array.isArray(b) && b.length===4 && b.every(n=>typeof n==="number")){
     let [y0,x0,y1,x1]=b.map(n=>Math.max(0,Math.min(1000,n))/1000);
@@ -1078,11 +1098,15 @@ async function aiRun(did, url){
       const cc=document.createElement("canvas"); cc.width=ow; cc.height=oh;
       const g=cc.getContext("2d"), s=Math.min(ow/sw, oh/sh); g.fillStyle="#000"; g.fillRect(0,0,ow,oh);
       g.drawImage(img,sx,sy,sw,sh,(ow-sw*s)/2,(oh-sh*s)/2,sw*s,sh*s);
-      upd["fridge.crop"]=cc.toDataURL("image/jpeg",.8);
+      out.crop=cc.toDataURL("image/jpeg",.8);
     }
   }
+  return out;
+}
+async function aiSave(did, u){
   const ref=db.doc("days/"+did), snap=await ref.get();
   if(!snap.exists || !snap.data().fridge || !snap.data().fridge.at) return; // photo was reset meanwhile
+  const upd={}; for(const k in u) upd["fridge."+k]=u[k];
   await ref.update(upd);
 }
 async function loadPhoto(id){
@@ -1151,7 +1175,7 @@ function renderToday(){
     if(!act.length) rows.append(el("tr",null,el("td",{colspan:"4"},"No active drivers. Add or activate them in Accounts.")));
     const cell=(d,sh)=>{
       const f=(dayOf(d.id,sh)||{}).fridge;
-      if(f){ const lt=isLate(f.at,sh); if(!f.ai) aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id)); return el("td",null, el("span",{style:"display:inline-flex;flex-direction:column;align-items:center;gap:4px"}, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, f.crop?el("img",{class:"tcrop",src:f.crop,alt:"Temperature"}):null, tempTag(f), "✓ "+timeTxt(f.at)+(lt?" late":"")), isOwner ? el("button",{class:"wx",style:"width:22px;height:22px;line-height:22px;font-size:11px","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"✕") : null)); }
+      if(f){ const lt=isLate(f.at,sh); if(!f.ai) aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id)); return el("td",null, el("span",{style:"display:inline-flex;flex-direction:column;align-items:center;gap:4px"}, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, f.crop?el("img",{class:"tcrop",src:f.crop,alt:"Temperature"}):null, tempTag(f), "✓ "+timeTxt(f.at)+(lt?" late":"")), (isAdmin && typeof f.temp!=="number") ? el("button",{class:"link",style:"padding:0;font-size:13px",onclick:()=>{ toast("Reading temperature…"); aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id), true); }},"🔄 Read") : null, isOwner ? el("button",{class:"wx",style:"width:22px;height:22px;line-height:22px;font-size:11px","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"✕") : null)); }
       return el("td",null, deadlinePassed(date,sh) ? el("span",{class:"fno"},"Missing") : el("span",{class:"pend"},"—"));
     };
     act.forEach(d=>{
