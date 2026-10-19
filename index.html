@@ -488,6 +488,8 @@ const CFG={apiKey:"AIzaSyD_Rh6fUiGFEVPgU6YTyocXjfdzOORwoyY",authDomain:"proteinq
 const MODELS=["gemini-2.5-flash-lite","gemini-flash-lite-latest","gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash"];
 const genCfg=model=>Object.assign({responseMimeType:"application/json",temperature:0,maxOutputTokens:200}, /2\.5/.test(model)?{thinkingConfig:{thinkingBudget:0}}:{});
 const PROMPT='This photo should show the temperature display (digital screen or dial) of a delivery car fridge or thermometer. Ignore the black text band at the bottom of the photo (it is a time stamp, not the temperature). Find the temperature reading. Reply only JSON: {"found": true|false, "temp": number or null, "unit": "C" or "F", "box_2d": [ymin, xmin, ymax, xmax]} where box_2d is the tight box around the temperature digits, normalized 0-1000. If there is no readable temperature, found=false and temp=null.';
+const PROMPT_BOX='Find the temperature number on the thermometer or fridge display in this photo. Reply only JSON: {"box_2d": [ymin, xmin, ymax, xmax]} with integers normalized 0-1000, a tight box around the temperature digits only.';
+const BOX_MODELS=["gemini-2.5-flash","gemini-flash-latest","gemini-2.5-flash-lite","gemini-2.0-flash"];
 let sdk=null;
 async function loadSdk(){
   for(const v of ["12.4.0","12.0.0","11.10.0"]){
@@ -501,27 +503,28 @@ async function loadSdk(){
   return null;
 }
 function parse(t){ try{ const m=String(t).match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; } }
-async function viaSdk(model,b64){
+async function viaSdk(model,b64,prompt){
   const m=sdk.M.getGenerativeModel(sdk.ai,{model, generationConfig:genCfg(model)});
-  const r=await m.generateContent([PROMPT,{inlineData:{data:b64,mimeType:"image/jpeg"}}]);
+  const r=await m.generateContent([prompt||PROMPT,{inlineData:{data:b64,mimeType:"image/jpeg"}}]);
   return parse(r.response.text());
 }
-async function viaRest(model,b64){
+async function viaRest(model,b64,prompt){
   const r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${CFG.projectId}/models/${model}:generateContent`,{method:"POST",
     headers:{"Content-Type":"application/json","x-goog-api-key":CFG.apiKey,"X-Firebase-AppId":CFG.appId},
-    body:JSON.stringify({contents:[{role:"user",parts:[{text:PROMPT},{inlineData:{mimeType:"image/jpeg",data:b64}}]}],generationConfig:genCfg(model)})});
+    body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt||PROMPT},{inlineData:{mimeType:"image/jpeg",data:b64}}]}],generationConfig:genCfg(model)})});
   if(!r.ok) throw new Error("AI "+r.status+" "+(await r.text()).slice(0,200));
   const j=await r.json(); return parse(((j.candidates||[])[0]||{}).content?.parts?.map(p=>p.text||"").join(""));
 }
 window.aiReady=(async()=>{ sdk=await loadSdk(); return true; })();
-window.aiReadTemp=async b64=>{
-  let good=null; try{ good=localStorage.getItem("aiModel2"); }catch(e){}
-  const list=good?[good,...MODELS.filter(x=>x!==good)]:MODELS;
+window.aiReadTemp=async (b64,mode)=>{
+  const prompt=mode==="box"?PROMPT_BOX:PROMPT, key=mode==="box"?"aiBoxModel":"aiModel2", base=mode==="box"?BOX_MODELS:MODELS;
+  let good=null; try{ good=localStorage.getItem(key); }catch(e){}
+  const list=good?[good,...base.filter(x=>x!==good)]:base;
   for(let round=0; round<3; round++){
     let busy=false;
     for(const model of list){
       for(const fn of (sdk?[viaSdk,viaRest]:[viaRest])){
-        try{ const r=await fn(model,b64); if(r){ try{ localStorage.setItem("aiModel2",model); }catch(e){} return r; } }
+        try{ const r=await fn(model,b64,prompt); if(r){ try{ localStorage.setItem(key,model); }catch(e){} return r; } }
         catch(e){ const m=String(e&&e.message||e); console.warn("AI",model,fn.name,m); if(/429|quota|exhausted|overloaded|503/i.test(m)){ busy=true; break; } }
       }
       if(busy) break;
@@ -1088,18 +1091,29 @@ function aiPump(){
   }
 }
 /* send a small copy of the photo to the AI; returns {ai,temp,unit,crop} or null */
+function normBox(b){
+  if(!b) return null;
+  if(Array.isArray(b) && b.length===1) b=b[0];
+  if(b && !Array.isArray(b) && typeof b==="object"){ if(b.box_2d) return normBox(b.box_2d); b=[b.ymin,b.xmin,b.ymax,b.xmax]; }
+  if(!Array.isArray(b) || b.length!==4) return null;
+  let n=b.map(Number); if(!n.every(isFinite)) return null;
+  if(n.every(v=>v<=1.5)) n=n.map(v=>v*1000);
+  return n;
+}
 async function aiRead(url){
   if(!url) return null;
   const ready=await (window.aiReady||Promise.resolve(false)); if(!ready||!window.aiReadTemp) return null;
   const img=await loadImg(url), W=img.naturalWidth, H=img.naturalHeight, k=Math.min(1,768/Math.max(W,H));
   const c=document.createElement("canvas"); c.width=Math.round(W*k); c.height=Math.round(H*k);
   c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-  const r=await window.aiReadTemp(c.toDataURL("image/jpeg",.8).split(",")[1]);
+  const b64=c.toDataURL("image/jpeg",.8).split(",")[1];
+  const r=await window.aiReadTemp(b64);
   if(!r) return null;
   const out={ai: r.found ? "ok" : "none"};
   if(typeof r.temp==="number" && isFinite(r.temp)){ out.temp=r.temp; out.unit=(r.unit==="F")?"F":"C"; }
-  const b=r.box_2d;
-  if(Array.isArray(b) && b.length===4 && b.every(n=>typeof n==="number")){
+  let b=normBox(r.box_2d||r.box||r.bbox);
+  if(!b && out.temp!==undefined){ const r2=await window.aiReadTemp(b64,"box").catch(()=>null); b=r2 && normBox(r2.box_2d||r2.box||r2.bbox||r2); }
+  if(b){
     let [y0,x0,y1,x1]=b.map(n=>Math.max(0,Math.min(1000,n))/1000);
     if(y1>y0 && x1>x0){
       const pw=(x1-x0)*0.12, ph=(y1-y0)*0.15; x0=Math.max(0,x0-pw); x1=Math.min(1,x1+pw); y0=Math.max(0,y0-ph); y1=Math.min(1,y1+ph);
@@ -1110,6 +1124,7 @@ async function aiRead(url){
       out.crop=cc.toDataURL("image/jpeg",.8);
     }
   }
+  if(out.temp!==undefined && !out.crop) out.noCrop=true;
   return out;
 }
 async function aiSave(did, u){
@@ -1184,7 +1199,7 @@ function renderToday(){
     if(!act.length) rows.append(el("tr",null,el("td",{colspan:"4"},"No active drivers. Add or activate them in Accounts.")));
     const cell=(d,sh)=>{
       const f=(dayOf(d.id,sh)||{}).fridge;
-      if(f){ const lt=isLate(f.at,sh); if(!f.ai) aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id)); return el("td",null, el("span",{style:"display:inline-flex;flex-direction:column;align-items:center;gap:4px"}, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, f.crop?el("img",{class:"tcrop",src:f.crop,alt:"Temperature"}):null, tempTag(f), "✓ "+timeTxt(f.at)+(lt?" late":"")), (isAdmin && typeof f.temp!=="number") ? el("button",{class:"link",style:"padding:0;font-size:13px",onclick:()=>{ toast("Reading temperature…"); aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id), true); }},"🔄 Read") : null, isOwner ? el("button",{class:"wx",style:"width:22px;height:22px;line-height:22px;font-size:11px","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"✕") : null)); }
+      if(f){ const lt=isLate(f.at,sh); if(!f.ai || (f.ai==="ok" && !f.crop && !f.noCrop)) aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id)); return el("td",null, el("span",{style:"display:inline-flex;flex-direction:column;align-items:center;gap:4px"}, el("button",{class:"fok",style:lt?"color:var(--tomato)":"",onclick:()=>viewPhoto(fridgeId(date,sh,d.id), d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at))}, f.crop?el("img",{class:"tcrop",src:f.crop,alt:"Temperature"}):null, tempTag(f), "✓ "+timeTxt(f.at)+(lt?" late":"")), (isAdmin && typeof f.temp!=="number") ? el("button",{class:"link",style:"padding:0;font-size:13px",onclick:()=>{ toast("Reading temperature…"); aiFridge(dayId(date,sh,d.id), null, fridgeId(date,sh,d.id), true); }},"🔄 Read") : null, isOwner ? el("button",{class:"wx",style:"width:22px;height:22px;line-height:22px;font-size:11px","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"✕") : null)); }
       return el("td",null, deadlinePassed(date,sh) ? el("span",{class:"fno"},"Missing") : el("span",{class:"pend"},"—"));
     };
     act.forEach(d=>{
