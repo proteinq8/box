@@ -314,7 +314,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 .zchip.none{background:var(--line);color:var(--muted)}
 .zchip.edit{border:1.5px dashed var(--leaf);background:var(--card);cursor:pointer;animation:zpulse 1.6s ease-in-out infinite}
 @keyframes zpulse{50%{box-shadow:0 0 0 4px var(--leaf-soft)}}
-.zbar{display:flex;justify-content:flex-end;margin:-4px 0 10px}
+.zbar{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:-4px 0 10px}
 .zbar.on{justify-content:space-between;align-items:center;gap:8px;background:var(--leaf-soft);border-radius:14px;padding:8px 10px;font-size:14px;font-weight:600;color:var(--leaf)}
 .zopen{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
 .zdone{border:0;background:var(--leaf);color:#fff;border-radius:999px;padding:7px 14px;font-weight:700;cursor:pointer;flex:none}
@@ -336,6 +336,12 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 .chkbar{width:100%;height:6px;border-radius:9px;background:var(--line);overflow:hidden;margin-top:6px}
 .chkbar i{display:block;height:100%;width:40%;background:var(--leaf);border-radius:9px;animation:chkmove 1.2s ease-in-out infinite}
 @keyframes chkmove{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+.rclist{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto}
+.rcrow{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;background:var(--paper);font-size:13px}
+.rcrow .rcn{font-weight:600}.rcrow .rcv{text-align:right;color:var(--muted)}
+.rcrow.chg{background:#FFF1D6}.rcrow.chg .rcv{color:#8A4F00;font-weight:700}
+.rcrow.chk{background:var(--line)}.rcrow.chk .rcv{color:var(--ink);font-weight:700}
+.rcrow.bad .rcv{color:var(--tomato)}
 @media (max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .stile.hot, :root:not([data-theme="light"]) .stat.hot{background:#3A2C12;border-color:#6B5220}
   :root:not([data-theme="light"]) .stat.hot b{color:#F2B54A} :root:not([data-theme="light"]) .flag.hot, :root:not([data-theme="light"]) .pill.warn{background:#4A3713;color:#F5C76A}
@@ -415,7 +421,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v21.1</div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v21.2</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -531,6 +537,15 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 <input type="file" id="selfieCam" accept="image/*" capture="user" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
 <input type="file" id="nativeCam" accept="image/*" capture="environment" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
 <div class="viewer hidden" id="viewer"><img id="vImg" alt=""><p id="vTxt"></p></div>
+<div class="sheet hidden" id="rcSheet" role="dialog" aria-modal="true" aria-labelledby="rcTitle">
+  <div class="sheet-box">
+    <h2 id="rcTitle" style="margin:0 0 4px;font-size:20px">Re-check all photos</h2>
+    <p id="rcSub" style="margin:0 0 10px;color:var(--muted);font-size:14px"></p>
+    <div class="chkbar" id="rcBar" style="margin:0 0 12px"><i></i></div>
+    <div id="rcList" class="rclist"></div>
+    <button class="btn ghost" id="rcClose" style="width:100%;margin-top:12px">Close</button>
+  </div>
+</div>
 <div class="sheet hidden" id="zoneSheet" role="dialog" aria-modal="true" aria-labelledby="zoneTitle">
   <div class="sheet-box">
     <h2 id="zoneTitle" style="margin:0 0 4px;font-size:20px"></h2>
@@ -1388,7 +1403,7 @@ function renderToday(){
     const st=(n,l,c)=>el("div",{class:"stat "+(c||"")}, el("b",null,n), el("span",null,l));
     $("#tZoneBar").replaceChildren(zoneEdit
       ? el("div",{class:"zbar on"}, el("span",null,"Tap a driver's zone to change it"), el("button",{class:"zdone",onclick:()=>{ zoneEdit=false; renderToday(); }},"Done ✓"))
-      : el("div",{class:"zbar"}, el("button",{class:"zopen",onclick:()=>{ zoneEdit=true; renderToday(); }},"⇄ Change zones")));
+      : el("div",{class:"zbar"}, isOwner ? el("button",{class:"zopen",onclick:recheckAll},"↻ Re-check all photos") : null, el("button",{class:"zopen",onclick:()=>{ zoneEdit=true; renderToday(); }},"⇄ Change zones")));
     $("#tStats").replaceChildren(
       st(nA+"/"+act.length,"Dawn photos"), st(nP+"/"+act.length,"Late AM photos"),
       st(String(nMiss),"Missing", nMiss?"bad":""), st(String(nHot),"Above "+HOT_C+"°C", nHot?"hot":""));
@@ -1522,6 +1537,44 @@ function hotWarnBtn(d, sh, f, date){
 }
 function showChecking(){ $("#chkOv").classList.remove("hidden"); }
 function hideChecking(){ if($("#chkOv").classList.contains("hidden")) return; $("#chkOv").classList.add("hidden"); toast("Done ✓ Fridge temperature saved"); }
+/* owner: run the 3-reading check on every saved fridge photo and show what changed */
+let rcRunning=false;
+async function recheckAll(){
+  $("#rcSheet").classList.remove("hidden");
+  if(rcRunning) return;
+  const list=$("#rcList"), sub=$("#rcSub"); list.replaceChildren(); sub.textContent="Loading photos…";
+  let docs=[];
+  try{ const q=await db.collection("days").get(); docs=q.docs.map(d=>({id:d.id, ...d.data()})).filter(x=>x.fridge && x.fridge.at && !x.fridge.manual && x.fridge.chk!==2); }
+  catch(e){ sub.textContent="Could not load: "+(e.message||e); return; }
+  docs.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+  if(!docs.length){ sub.textContent="All photos are already checked with the new 3-reading method ✓"; $("#rcBar").classList.add("hidden"); return; }
+  rcRunning=true; $("#rcBar").classList.remove("hidden");
+  let done=0, changed=0, unsure=0, failed=0;
+  const upd=()=>sub.textContent="Checked "+done+" of "+docs.length+" | changed: "+changed+" | not sure: "+unsure+(failed?" | failed: "+failed:"")+(done<docs.length?" — keep this page open":" — finished ✓");
+  upd();
+  const work=[...docs];
+  const one=async x=>{
+    const drv=drivers.find(d=>d.id===x.driverId), name=drv?drv.name:(x.driverName||x.driverId);
+    const before=(typeof x.fridge.temp==="number")?x.fridge.temp:null, wasHot=tempHot(x.fridge);
+    const row=el("div",{class:"rcrow"}, el("span",{class:"rcn"},name+" · "+x.date.slice(5)+" · "+(x.shift==="am"?"Dawn":"Late AM")), el("span",{class:"rcv"},"…"));
+    list.prepend(row);
+    try{
+      const url=await loadPhoto(fridgeId(x.date,x.shift,x.driverId)); const u=await aiRead(url);
+      if(!u){ failed++; row.lastChild.textContent="AI busy — try again later"; row.classList.add("bad"); return; }
+      await aiSave(x.id,u);
+      const after=(u.ai==="ok")?u.temp:null, nowHot=u.ai==="ok" && typeof u.temp==="number" && u.temp>HOT_C;
+      const b=before===null?"—":before+"°", a=u.ai==="check"?"? ("+(u.reads||[]).join(" / ")+")":after===null?"—":after+"°";
+      if(u.ai==="check"){ unsure++; row.classList.add("chk"); }
+      else if(before!==after){ changed++; row.classList.add("chg"); }
+      row.lastChild.textContent=b+" → "+a+(wasHot&&!nowHot?"  (warning was wrong)":"")+(!wasHot&&nowHot?"  (now above "+HOT_C+")":"");
+    }catch(e){ failed++; row.lastChild.textContent="Error"; row.classList.add("bad"); }
+    finally{ done++; upd(); }
+  };
+  const runners=[0,1].map(async()=>{ while(work.length) await one(work.shift()); });
+  await Promise.all(runners);
+  rcRunning=false; $("#rcBar").classList.add("hidden"); upd();
+}
+$("#rcClose").onclick=()=>$("#rcSheet").classList.add("hidden");
 function lateFridge(date){
   const out=[];
   ["am","pm"].forEach(sh=>{
