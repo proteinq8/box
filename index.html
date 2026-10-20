@@ -329,6 +329,13 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 .flag.chk{background:var(--line);color:var(--ink)}
 .ttemp.chk{background:var(--line)!important;color:var(--muted)!important;font-size:16px}
 .tbtn.pri{background:var(--leaf);color:#fff;border-color:var(--leaf)}
+.chkov{position:fixed;inset:0;background:rgba(10,20,14,.55);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+.chkbox{background:var(--card);border-radius:22px;padding:24px 22px;text-align:center;max-width:320px;width:100%;display:flex;flex-direction:column;gap:8px;align-items:center}
+.chkbox b{font-size:20px}.chkbox span{color:var(--muted);font-size:15px}
+.chkok{width:56px;height:56px;border-radius:50%;background:var(--leaf);color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center}
+.chkbar{width:100%;height:6px;border-radius:9px;background:var(--line);overflow:hidden;margin-top:6px}
+.chkbar i{display:block;height:100%;width:40%;background:var(--leaf);border-radius:9px;animation:chkmove 1.2s ease-in-out infinite}
+@keyframes chkmove{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
 @media (max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .stile.hot, :root:not([data-theme="light"]) .stat.hot{background:#3A2C12;border-color:#6B5220}
   :root:not([data-theme="light"]) .stat.hot b{color:#F2B54A} :root:not([data-theme="light"]) .flag.hot, :root:not([data-theme="light"]) .pill.warn{background:#4A3713;color:#F5C76A}
@@ -408,7 +415,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v21</div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v21.1</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -558,6 +565,14 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
   </div>
 </div>
 <div class="toast hidden" id="toast"></div>
+<div class="chkov hidden" id="chkOv" role="status" aria-live="polite">
+  <div class="chkbox">
+    <div class="chkok">✓</div>
+    <b>Photo saved</b>
+    <span>Checking the temperature…<br>Please keep this page open.</span>
+    <div class="chkbar"><i></i></div>
+  </div>
+</div>
 
 <script>
 (function(){ if(!Element.prototype.replaceChildren){ Element.prototype.replaceChildren=function(){ while(this.firstChild) this.removeChild(this.firstChild); for(var i=0;i<arguments.length;i++){ var a=arguments[i]; this.appendChild(a&&a.nodeType?a:document.createTextNode(a)); } }; } })();
@@ -1148,8 +1163,13 @@ $("#saveShot").onclick = async ()=>{
       const pre=await Promise.race([aiP, new Promise(r=>setTimeout(()=>r(null),1500))]);
       const pv={...(pre||{})}; delete pv._dbg; const f={fridge:{at:cp.at, ...pv}};
       if(myDays[sh]) await ref.update(f); else await ref.set({...base, entries:{}, ...f});
-      toast("Fridge temperature saved"); closeCam();
-      if(!pre){ aiTried[did]=true; aiP.then(u=>u ? aiSave(did,u) : (delete aiTried[did], aiFridge(did, cp.url))).catch(()=>{}); }
+      closeCam();
+      if(!pre){
+        aiTried[did]=true; showChecking();
+        const fin=()=>hideChecking();
+        aiP.then(u=>u ? aiSave(did,u) : (delete aiTried[did], aiFridge(did, cp.url))).catch(()=>{}).finally(fin);
+        setTimeout(fin, 45000);
+      } else toast("Fridge temperature saved");
     }else{
       const [idBox,idDrop]=delPhotos(date,sh,drv.id,c.key,{v:2});
       await db.doc("photos/"+idBox).set({img:c.shots[0].url, driverId:drv.id, date, shift:sh}); photoCache[idBox]=c.shots[0].url;
@@ -1500,6 +1520,8 @@ function hotWarnBtn(d, sh, f, date){
   });
   return a;
 }
+function showChecking(){ $("#chkOv").classList.remove("hidden"); }
+function hideChecking(){ if($("#chkOv").classList.contains("hidden")) return; $("#chkOv").classList.add("hidden"); toast("Done ✓ Fridge temperature saved"); }
 function lateFridge(date){
   const out=[];
   ["am","pm"].forEach(sh=>{
