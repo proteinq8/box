@@ -343,6 +343,9 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 .rcrow.chk{background:var(--line)}.rcrow.chk .rcv{color:var(--ink);font-weight:700}
 .rcrow.bad .rcv{color:var(--tomato)}
 .scrop.full{object-fit:contain;height:96px;background:#000}
+.learn{font-size:13px;color:var(--muted);margin:-6px 0 10px;text-align:center}
+.tbtn.pick{background:var(--leaf-soft);color:var(--leaf);border-color:transparent;font-weight:700}
+.tbtn.ok{color:var(--leaf);font-weight:800}
 @media (max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .stile.hot, :root:not([data-theme="light"]) .stat.hot{background:#3A2C12;border-color:#6B5220}
   :root:not([data-theme="light"]) .stat.hot b{color:#F2B54A} :root:not([data-theme="light"]) .flag.hot, :root:not([data-theme="light"]) .pill.warn{background:#4A3713;color:#F5C76A}
@@ -422,7 +425,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v21.3</div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v22</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -436,7 +439,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       <label class="f" style="margin-bottom:12px">Date<input class="in" type="date" id="tDate"></label>
       <div id="tList">
         <div class="count" id="tTimes" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"></div>
-        <div class="stats" id="tStats"></div><div id="tZoneBar"></div><div class="dlist" id="tRows"></div>
+        <div class="stats" id="tStats"></div><div class="learn" id="tLearn"></div><div id="tZoneBar"></div><div class="dlist" id="tRows"></div>
         <div class="count" id="tOff"></div>
       </div>
       <div id="tDetail" class="hidden">
@@ -621,20 +624,32 @@ function parse(t){
   try{ const j=JSON.parse(t); return Array.isArray(j) ? (j[0] && typeof j[0]==="object" && !Array.isArray(j[0]) ? j[0] : {box_2d:j}) : j; }catch(e){}
   try{ const m=t.match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; }
 }
-async function viaSdk(model,b64,prompt,deep){
+async function viaSdk(model,b64,prompt,deep,ex){
   const m=sdk.M.getGenerativeModel(sdk.ai,{model, generationConfig:genCfg(model,deep)});
-  const r=await m.generateContent([prompt||PROMPT,{inlineData:{data:b64,mimeType:"image/jpeg"}}]);
+  const r=await m.generateContent(buildParts(b64,prompt,ex));
   return parse(r.response.text());
 }
-async function viaRest(model,b64,prompt,deep){
+async function viaRest(model,b64,prompt,deep,ex){
   const r=await fetch(`https://firebasevertexai.googleapis.com/v1beta/projects/${CFG.projectId}/models/${model}:generateContent`,{method:"POST",
     headers:{"Content-Type":"application/json","x-goog-api-key":CFG.apiKey,"X-Firebase-AppId":CFG.appId},
-    body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt||PROMPT},{inlineData:{mimeType:"image/jpeg",data:b64}}]}],generationConfig:genCfg(model,deep)})});
+    body:JSON.stringify({contents:[{role:"user",parts:buildParts(b64,prompt,ex)}],generationConfig:genCfg(model,deep)})});
   if(!r.ok) throw new Error("AI "+r.status+" "+(await r.text()).slice(0,200));
   const j=await r.json(); return parse(((j.candidates||[])[0]||{}).content?.parts?.map(p=>p.text||"").join(""));
 }
+/* examples the owner corrected by hand: shown to the AI first so it learns our thermometers */
+function buildParts(b64,prompt,ex){
+  const parts=[];
+  if(ex && ex.length){
+    parts.push({text:"These are earlier photos of OUR fridge thermometers. A person checked each one and wrote the correct temperature. Learn how our displays look (red 7-segment LED digits, leading zero, minus sign) and read the new photo the same way."});
+    ex.forEach((e,i)=>{ parts.push({inlineData:{mimeType:"image/jpeg",data:e.img.split(",")[1]}}); parts.push({text:"Example "+(i+1)+": the correct temperature is "+e.t+"°C."}); });
+    parts.push({text:"Now the NEW photo to read:"});
+  }
+  parts.push({text:prompt||PROMPT}); parts.push({inlineData:{mimeType:"image/jpeg",data:b64}});
+  return parts;
+}
 window.aiReady=(async()=>{ sdk=await loadSdk(); return true; })();
-window.aiReadTemp=async (b64,mode)=>{
+window.aiReadTemp=async (b64,mode,ex)=>{
+  if(mode==="box") ex=null;
   const M={temp:[PROMPT,"aiModel2",MODELS,false], box:[PROMPT_BOX,"aiBoxModel",BOX_MODELS,false], verify:[PROMPT_VERIFY,"aiStrong",BOX_MODELS,true], crop:[PROMPT_CROP,"aiStrong",BOX_MODELS,true]}[mode||"temp"];
   const [prompt,key,base,deep]=M;
   let good=null; try{ good=localStorage.getItem(key); }catch(e){}
@@ -643,7 +658,7 @@ window.aiReadTemp=async (b64,mode)=>{
     let busy=false;
     for(const model of list){
       for(const fn of (sdk?[viaSdk,viaRest]:[viaRest])){
-        try{ const r=await fn(model,b64,prompt,deep); if(r){ try{ localStorage.setItem(key,model); }catch(e){} window.__aiModel=model; return r; } }
+        try{ const r=await fn(model,b64,prompt,deep,ex); if(r){ try{ localStorage.setItem(key,model); }catch(e){} window.__aiModel=model; return r; } }
         catch(e){ const m=String(e&&e.message||e); console.warn("AI",model,fn.name,m); window.__aiErr=model+": "+m.slice(0,160); if(/429|quota|exhausted|overloaded|503/i.test(m)){ busy=true; break; } }
       }
       if(busy) break;
@@ -850,7 +865,7 @@ window.addEventListener("hashchange",()=>{ if(started) openPhotoHash(); });
 function start(){
   if(started){ renderDriver(); renderAdminGate(); if(isAdmin){ renderDriverOptions(); renderDrivers(); subAdmin(); } return; }
   started=true;
-  db.collection("profiles").onSnapshot(s=>{ profiles={}; s.docs.forEach(d=>profiles[d.id]=d.data().img); renderDriver(); if(isAdmin){ renderAdminGate(); renderDrivers(); renderAdmin(); } }, ()=>{});
+  db.collection("profiles").onSnapshot(s=>{ profiles={}; s.docs.forEach(d=>{ if(d.id==="_aiLearn"){ aiLearn=Object.assign({ex:[],log:[]},d.data()); return; } profiles[d.id]=d.data().img; }); renderDriver(); if(isAdmin){ renderAdminGate(); renderDrivers(); renderAdmin(); } }, ()=>{});
   db.doc("data/settings").onSnapshot(s=>{
     const x=s.exists?s.data():{}; drivers=x.drivers||[]; admins=x.admins||[];
     alertTimes=Object.assign({am:"04:00",pm:"13:00"}, x.alertTimes||{});
@@ -1160,7 +1175,7 @@ function stamp(source, sw, sh){
 $("#nativeCam").addEventListener("change", e=>{
   const f=e.target.files[0]; if(!f||!current) return;
   if(f.lastModified && Date.now()-f.lastModified > 3*60*1000){ toast("Take a new photo with the camera now. Old photos are not accepted."); e.target.value=""; return; }
-  const img=new Image(); img.onload=()=>{ captured=stamp(img,img.naturalWidth,img.naturalHeight); captured.orig=img; captured.crop=null; if(current&&current.kind==="fridge"){ const cp=captured; cp.aiP=aiRead(cp.url).catch(()=>null); } $("#shot").src=captured.url; camView("confirm"); startCrop(); };
+  const img=new Image(); img.onload=()=>{ captured=stamp(img,img.naturalWidth,img.naturalHeight); captured.orig=img; captured.crop=null; if(current&&current.kind==="fridge"){ const cp=captured; cp.aiP=aiRead(cp.url, current.drv && current.drv.id).catch(()=>null); } $("#shot").src=captured.url; camView("confirm"); startCrop(); };
   img.src=URL.createObjectURL(f);
 });
 $("#retake").onclick = ()=>{ captured=null; $("#cropBox").classList.add("hidden"); $("#cropHint").classList.add("hidden"); shootNow(); };
@@ -1220,7 +1235,7 @@ function aiFridge(did, url, pid, force, done){
 function aiPump(){
   while(aiActive<2 && aiQueue.length){
     const j=aiQueue.shift(); aiActive++; aiState[j.did]="reading"; aiRerender();
-    (async()=>{ const url=j.url || (j.pid ? await loadPhoto(j.pid) : ""); if(!url){ j.done&&j.done("Photo not found."); return; } const u=await aiRead(url); if(u){ await aiSave(j.did,u); delete aiState[j.did]; j.done&&j.done("Done: "+(u.temp!==undefined?u.temp+"°"+(u.unit||"C"):"no temperature")+"\n"+u._dbg); } else { aiTried[j.did]=Date.now(); aiState[j.did]="busy"; setTimeout(()=>{ if(aiState[j.did]==="busy"){ aiFridge(j.did,j.url,j.pid,true); } },60000); j.done&&j.done(aiRead.err||"AI failed"); } })()
+    (async()=>{ const url=j.url || (j.pid ? await loadPhoto(j.pid) : ""); if(!url){ j.done&&j.done("Photo not found."); return; } const u=await aiRead(url, j.did.split("_")[2]); if(u){ await aiSave(j.did,u); delete aiState[j.did]; j.done&&j.done("Done: "+(u.temp!==undefined?u.temp+"°"+(u.unit||"C"):"no temperature")+"\n"+u._dbg); } else { aiTried[j.did]=Date.now(); aiState[j.did]="busy"; setTimeout(()=>{ if(aiState[j.did]==="busy"){ aiFridge(j.did,j.url,j.pid,true); } },60000); j.done&&j.done(aiRead.err||"AI failed"); } })()
       .catch(e=>{ console.warn("AI",e); aiTried[j.did]=Date.now(); aiState[j.did]="busy"; })
       .finally(()=>{ aiActive--; aiRerender(); aiPump(); });
   }
@@ -1244,7 +1259,29 @@ function readNum(r){
   if(v===null || v<-30 || v>35) return null;
   return Math.round(v*10)/10;
 }
-async function aiRead(url){
+let aiLearn={ex:[],log:[]};
+const EX_MAX=16, EX_USE=6;
+function examplesFor(drvId){
+  const ex=(aiLearn.ex||[]).filter(e=>e&&e.img);
+  const mine=ex.filter(e=>e.drv===drvId).slice(-3), others=ex.filter(e=>e.drv!==drvId).slice(-(EX_USE-mine.length));
+  return [...mine,...others];
+}
+async function smallJpeg(url, max){ const im=await loadImg(url), k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)), c=document.createElement("canvas"); c.width=Math.round(im.naturalWidth*k); c.height=Math.round(im.naturalHeight*k); c.getContext("2d").drawImage(im,0,0,c.width,c.height); return c.toDataURL("image/jpeg",.7); }
+/* the owner typed the right number → keep it as a lesson for the AI */
+async function learnFrom(f, fid, drvId, n){
+  let img=f.crop||"";
+  if(!img){ const u=await loadPhoto(fid).catch(()=>""); if(u) img=await smallJpeg(u,480).catch(()=>""); }
+  const aiWas=(typeof f.temp==="number" && !f.manual) ? f.temp : null, right=f.ai==="ok" && aiWas!==null && Math.abs(aiWas-n)<=0.5;
+  const ref=db.doc("profiles/_aiLearn"), snap=await ref.get(), cur=snap.exists?snap.data():{};
+  const ex=(cur.ex||[]).filter(e=>e.fid!==fid); if(img) ex.push({img, t:n, drv:drvId, fid, at:Date.now()});
+  const log=(cur.log||[]).filter(l=>l.fid!==fid); log.push({fid, ai:aiWas, ok:right, at:Date.now()});
+  await ref.set({ex:ex.slice(-EX_MAX), log:log.slice(-60)});
+}
+function aiScore(){
+  const l=(aiLearn.log||[]).slice(-20); if(!l.length) return null;
+  return {right:l.filter(x=>x.ok).length, n:l.length};
+}
+async function aiRead(url, drvId){
   if(!url) return null;
   const ready=await (window.aiReady||Promise.resolve(false)); if(!ready||!window.aiReadTemp) return null;
   const img=await loadImg(url), W=img.naturalWidth, H=img.naturalHeight, k=Math.min(1,1024/Math.max(W,H));
@@ -1252,7 +1289,8 @@ async function aiRead(url){
   c.getContext("2d").drawImage(img,0,0,c.width,c.height);
   const b64=c.toDataURL("image/jpeg",.85).split(",")[1];
   // read 1: fast model, whole photo (also finds where the number is)
-  const r=await window.aiReadTemp(b64,"temp") || {};
+  const EX=examplesFor(drvId);
+  const r=await window.aiReadTemp(b64,"temp",EX) || {};
   const dbg=[];
   const v1=readNum(r); dbg.push("1:"+(v1===null?"?":v1)+" ("+(window.__aiModel||"?")+")");
   let b=normBox(r.box_2d||r.box||r.bbox);
@@ -1274,7 +1312,7 @@ async function aiRead(url){
     }
   }
   // read 2: stronger model, whole photo, careful mode   |   read 3: stronger model, close-up of the number
-  const [r2,r3]=await Promise.all([ window.aiReadTemp(b64,"verify").catch(()=>null), zoom ? window.aiReadTemp(zoom,"crop").catch(()=>null) : Promise.resolve(null) ]);
+  const [r2,r3]=await Promise.all([ window.aiReadTemp(b64,"verify",EX).catch(()=>null), zoom ? window.aiReadTemp(zoom,"crop",EX).catch(()=>null) : Promise.resolve(null) ]);
   const v2=readNum(r2), v3=readNum(r3);
   dbg.push("2:"+(v2===null?"?":v2)); dbg.push("3:"+(zoom?(v3===null?"?":v3):"no close-up"));
   if(!Object.keys(r).length && !r2 && !r3){ aiRead.err="AI did not answer: "+(window.__aiErr||"no reply"); return null; }
@@ -1372,11 +1410,17 @@ function renderToday(){
       const lt=isLate(f.at,sh), hot=tempHot(f), unsure=f.ai==="check" && !f.manual, has=typeof f.temp==="number" && !unsure;
       lab.append(el("span",{class:"pill "+(lt?"warn":"good")}, timeTxt(f.at)+(lt?" · late":"")));
       const open=()=>viewPhoto(fid, d.name+" | "+(d.zone||"No zone")+" | "+SHIFT[sh]+" fridge | "+stampTxt(f.at));
-      const fix=async()=>{
-        const v=prompt("Correct temperature for "+d.name+" ("+SHIFT[sh]+"), in °C:", has?String(f.temp):""); if(v==null) return;
-        const n=parseFloat(String(v).replace(",",".")); if(!isFinite(n)){ toast("Not a number."); return; }
-        try{ await db.doc("days/"+did).update({"fridge.temp":n,"fridge.unit":"C","fridge.ai":"ok","fridge.manual":true,"fridge.by":adminCred.username}); toast("Saved: "+n+"°C"); }catch(e){ toast("Not saved."); }
+      const setTemp=async n=>{
+        try{ await db.doc("days/"+did).update({"fridge.temp":n,"fridge.unit":"C","fridge.ai":"ok","fridge.manual":true,"fridge.by":adminCred.username}); toast("Saved: "+n+"°C — the AI learns from this ✓"); }
+        catch(e){ toast("Not saved."); return; }
+        learnFrom(f, fid, d.id, n).catch(e=>console.warn("learn",e));
       };
+      const fix=async()=>{
+        const v=prompt("Correct temperature for "+d.name+" ("+SHIFT[sh]+"), in °C.\nLook at the photo and type the number:", has?String(f.temp):""); if(v==null) return;
+        const n=parseFloat(String(v).replace(",",".")); if(!isFinite(n)){ toast("Not a number."); return; }
+        setTemp(n);
+      };
+      const picks=(unsure && f.reads) ? [...new Set(f.reads)] : [];
       return el("div",{class:"stile "+(hot?"hot":unsure?"chk":"ok")}, lab,
         el("button",{class:"sbody",onclick:open,"aria-label":"Open photo"},
           f.crop ? el("img",{class:"scrop",src:f.crop,alt:"Thermometer"}) : (()=>{ const im=el("img",{class:"scrop full",alt:"Fridge photo"}); im.dataset.id=fid; if(photoCache[fid]) im.src=photoCache[fid]; else io.observe(im); return im; })(),
@@ -1385,7 +1429,9 @@ function renderToday(){
           (!has && !unsure && f.ai==="none") ? el("span",{class:"sunsure"},"AI can't read it — tap ✎ to type it") :
           unsure ? el("span",{class:"sunsure"},"AI not sure"+(f.reads&&f.reads.length?": "+f.reads.map(x=>x+"°").join(" / "):"")) : f.manual ? el("span",{class:"sunsure"},"✎ set by "+(f.by||"admin")) : null),
         (isAdmin || isOwner) ? el("div",{class:"sact"},
-          isAdmin ? el("button",{class:"tbtn"+(unsure?" pri":""),onclick:fix},unsure?"✎ Set":"✎") : null,
+          ...(isAdmin ? picks.map(v=>el("button",{class:"tbtn pick",onclick:()=>setTemp(v)},v+"° ✓")) : []),
+          isAdmin ? el("button",{class:"tbtn"+(unsure?" pri":""),onclick:fix},unsure?"✎ Other":(has?"✎":"✎ Type it")) : null,
+          (isAdmin && has && !f.manual) ? el("button",{class:"tbtn ok",title:"The AI read it right",onclick:()=>setTemp(f.temp)},"✓") : null,
           (isAdmin && (!has || !f.crop || unsure)) ? el("button",{class:"tbtn",onclick:()=>{ longToast("Reading… wait a few seconds"); aiFridge(did, null, fid, true, msg=>longToast(msg)); }},"↻ Read") : null,
           isOwner ? el("button",{class:"tbtn danger","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"Reset") : null) : null);
     };
@@ -1408,6 +1454,8 @@ function renderToday(){
     $("#tZoneBar").replaceChildren(zoneEdit
       ? el("div",{class:"zbar on"}, el("span",null,"Tap a driver's zone to change it"), el("button",{class:"zdone",onclick:()=>{ zoneEdit=false; renderToday(); }},"Done ✓"))
       : el("div",{class:"zbar"}, isOwner ? el("button",{class:"zopen",onclick:recheckAll},"↻ Re-check all photos") : null, el("button",{class:"zopen",onclick:()=>{ zoneEdit=true; renderToday(); }},"⇄ Change zones")));
+    { const sc=aiScore(), nEx=(aiLearn.ex||[]).length;
+      $("#tLearn").replaceChildren(el("span",null,"🧠 AI learning: "+nEx+" example"+(nEx===1?"":"s")+" saved"+(sc?" · right "+sc.right+" of last "+sc.n+" ("+Math.round(sc.right*100/sc.n)+"%)":" · tap ✓ when right, ✎ when wrong"))); }
     $("#tStats").replaceChildren(
       st(nA+"/"+act.length,"Dawn photos"), st(nP+"/"+act.length,"Late AM photos"),
       st(String(nMiss),"Missing", nMiss?"bad":""), st(String(nHot),"Above "+HOT_C+"°C", nHot?"hot":""));
@@ -1563,7 +1611,7 @@ async function recheckAll(){
     const row=el("div",{class:"rcrow"}, el("span",{class:"rcn"},name+" · "+x.date.slice(5)+" · "+(x.shift==="am"?"Dawn":"Late AM")), el("span",{class:"rcv"},"…"));
     list.prepend(row);
     try{
-      const url=await loadPhoto(fridgeId(x.date,x.shift,x.driverId)); const u=await aiRead(url);
+      const url=await loadPhoto(fridgeId(x.date,x.shift,x.driverId)); const u=await aiRead(url, x.driverId);
       if(!u){ failed++; row.lastChild.textContent="AI busy — try again later"; row.classList.add("bad"); return; }
       await aiSave(x.id,u);
       const after=(u.ai==="ok")?u.temp:null, nowHot=u.ai==="ok" && typeof u.temp==="number" && u.temp>HOT_C;
