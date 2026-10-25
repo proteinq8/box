@@ -346,6 +346,9 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
 .learn{font-size:13px;color:var(--muted);margin:-6px 0 10px;text-align:center}
 .tbtn.pick{background:var(--leaf-soft);color:var(--leaf);border-color:transparent;font-weight:700}
 .tbtn.ok{color:var(--leaf);font-weight:800}
+.sphoto{display:block;width:100%;height:260px;object-fit:contain;background:#000;border-radius:10px}
+.sphoto.zoomed{object-fit:cover}
+.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .stile.hot, :root:not([data-theme="light"]) .stat.hot{background:#3A2C12;border-color:#6B5220}
   :root:not([data-theme="light"]) .stat.hot b{color:#F2B54A} :root:not([data-theme="light"]) .flag.hot, :root:not([data-theme="light"]) .pill.warn{background:#4A3713;color:#F5C76A}
@@ -425,7 +428,7 @@ tr.rmiss.rhot td:first-child{box-shadow:inset 6px 0 0 #C8402A}
       </div>
     </div>
     <div id="adminMain" class="hidden">
-    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v22</div>
+    <div class="who"><button class="whoav" id="aAvBtn" aria-label="Change admin photo"><span id="aAv"></span><span>Admin: <b id="aWho"></b></span></button><button class="link" id="aOut">Sign out</button></div><div style="font-size:11px;color:#999;text-align:right;margin-top:-6px">v23.1</div>
     <div id="alertBox"></div>
     <button class="dedbtn" id="dedFab">💸 Deduction</button>
     <div class="sub-tabs" id="adminTabs">
@@ -1175,7 +1178,7 @@ function stamp(source, sw, sh){
 $("#nativeCam").addEventListener("change", e=>{
   const f=e.target.files[0]; if(!f||!current) return;
   if(f.lastModified && Date.now()-f.lastModified > 3*60*1000){ toast("Take a new photo with the camera now. Old photos are not accepted."); e.target.value=""; return; }
-  const img=new Image(); img.onload=()=>{ captured=stamp(img,img.naturalWidth,img.naturalHeight); captured.orig=img; captured.crop=null; if(current&&current.kind==="fridge"){ const cp=captured; cp.aiP=aiRead(cp.url, current.drv && current.drv.id).catch(()=>null); } $("#shot").src=captured.url; camView("confirm"); startCrop(); };
+  const img=new Image(); img.onload=()=>{ captured=stamp(img,img.naturalWidth,img.naturalHeight); captured.orig=img; captured.crop=null; if(AI_ON&&current&&current.kind==="fridge"){ const cp=captured; cp.aiP=aiRead(cp.url, current.drv && current.drv.id).catch(()=>null); } $("#shot").src=captured.url; camView("confirm"); startCrop(); };
   img.src=URL.createObjectURL(f);
 });
 $("#retake").onclick = ()=>{ captured=null; $("#cropBox").classList.add("hidden"); $("#cropHint").classList.add("hidden"); shootNow(); };
@@ -1195,7 +1198,8 @@ $("#saveShot").onclick = async ()=>{
       const pv={...(pre||{})}; delete pv._dbg; const f={fridge:{at:cp.at, ...pv}};
       if(myDays[sh]) await ref.update(f); else await ref.set({...base, entries:{}, ...f});
       closeCam();
-      if(!pre){
+      if(!AI_ON) toast("Fridge photo saved ✓");
+      else if(!pre){
         aiTried[did]=true; showChecking();
         const fin=()=>hideChecking();
         aiP.then(u=>u ? aiSave(did,u) : (delete aiTried[did], aiFridge(did, cp.url))).catch(()=>{}).finally(fin);
@@ -1219,16 +1223,18 @@ $("#camClose").onclick = ()=>{ if(current && current.kind==="delivery" && curren
 /* ---------- photos ---------- */
 const photoCache={};
 /* ---------- AI: read the temperature and cut out the number ---------- */
+const AI_ON=false; // temperature reading by AI is switched off: the photo is enough
 const HOT_C=7; const aiTried={};
 function tempTxt(f){ return f && typeof f.temp==="number" ? (Math.round(f.temp*10)/10)+"°"+(f.unit||"C") : ""; }
 function tempOk(f){ return !!f && typeof f.temp==="number" && (f.manual || f.ai==="ok"); }
-function tempHot(f){ if(!tempOk(f)) return false; const c=(f.unit==="F")?(f.temp-32)*5/9:f.temp; return c>HOT_C; }
-function tempTag(f){ if(f && f.ai==="check" && !f.manual) return el("b",{class:"ttemp chk"},"Checking…"); const t=tempTxt(f); return t ? el("b",{class:"ttemp"+(tempHot(f)?" hot":"")},t) : null; }
+function tempHot(f){ if(!AI_ON || !tempOk(f)) return false; const c=(f.unit==="F")?(f.temp-32)*5/9:f.temp; return c>HOT_C; }
+function tempTag(f){ if(!AI_ON) return null; if(f && f.ai==="check" && !f.manual) return el("b",{class:"ttemp chk"},"Checking…"); const t=tempTxt(f); return t ? el("b",{class:"ttemp"+(tempHot(f)?" hot":"")},t) : null; }
 const loadImg=url=>new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=url; });
 /* up to 4 readings at the same time; a failed one can be tried again after 1 minute */
 let aiActive=0; const aiQueue=[]; const aiState={};
 let aiRT=null; const aiRerender=()=>{ clearTimeout(aiRT); aiRT=setTimeout(()=>{ try{ if(isAdmin) renderToday(); }catch(e){} },300); };
 function aiFridge(did, url, pid, force, done){
+  if(!AI_ON) return;
   const t=aiTried[did]; if(!force && t && (t===true || Date.now()-t<60000)) return; aiTried[did]=true;
   aiQueue.push({did,url,pid,done}); aiState[did]="wait"; aiRerender(); aiPump();
 }
@@ -1280,6 +1286,38 @@ async function learnFrom(f, fid, drvId, n){
 function aiScore(){
   const l=(aiLearn.log||[]).slice(-20); if(!l.length) return null;
   return {right:l.filter(x=>x.ok).length, n:l.length};
+}
+/* find WHERE the thermometer number is (no reading of the value), to zoom the photo there */
+const zoomCache={}, locTried={}; let locActive=0; const locQueue=[];
+function locateBox(did, fid){
+  if(locTried[did]) return; locTried[did]=1; locQueue.push({did,fid}); locPump();
+}
+function locPump(){
+  while(locActive<2 && locQueue.length){
+    const j=locQueue.shift(); locActive++;
+    (async()=>{
+      const ready=await (window.aiReady||Promise.resolve(false)); if(!ready||!window.aiReadTemp) return;
+      const url=await loadPhoto(j.fid); if(!url) return;
+      const b64=(await smallJpeg(url,1024)).split(",")[1];
+      const r=await window.aiReadTemp(b64,"box"); if(!r){ setTimeout(()=>{ delete locTried[j.did]; },60000); return; }
+      const b=normBox(r.box_2d||r.box||r.bbox||r);
+      const ref=db.doc("days/"+j.did), snap=await ref.get(); if(!snap.exists || !snap.data().fridge) return;
+      await ref.update({"fridge.box": b ? b.map(Math.round) : "none"});
+    })().catch(e=>console.warn("locate",e)).finally(()=>{ locActive--; locPump(); });
+  }
+}
+async function zoomImg(fid, box){
+  if(zoomCache[fid]) return zoomCache[fid];
+  const url=await loadPhoto(fid); if(!url) return "";
+  const im=await loadImg(url), W=im.naturalWidth, H=im.naturalHeight;
+  let [y0,x0,y1,x1]=box.map(n=>Math.max(0,Math.min(1000,n))/1000);
+  const cx=(x0+x1)/2*W, cy=(y0+y1)/2*H;
+  let w=Math.max((x1-x0)*W*3, W*0.5), h=w*1.15;          // a bit around the number
+  if(h>H){ h=H; w=h/1.15; } if(w>W){ w=W; h=Math.min(H,w*1.15); }
+  const sx=Math.max(0,Math.min(W-w,cx-w/2)), sy=Math.max(0,Math.min(H-h,cy-h/2));
+  const c=document.createElement("canvas"), ow=600; c.width=ow; c.height=Math.round(ow*h/w);
+  c.getContext("2d").drawImage(im,sx,sy,w,h,0,0,c.width,c.height);
+  return zoomCache[fid]=c.toDataURL("image/jpeg",.85);
 }
 async function aiRead(url, drvId){
   if(!url) return null;
@@ -1421,19 +1459,13 @@ function renderToday(){
         setTemp(n);
       };
       const picks=(unsure && f.reads) ? [...new Set(f.reads)] : [];
-      return el("div",{class:"stile "+(hot?"hot":unsure?"chk":"ok")}, lab,
+      return el("div",{class:"stile "+(hot?"hot":(AI_ON&&unsure)?"chk":"ok")}, lab,
         el("button",{class:"sbody",onclick:open,"aria-label":"Open photo"},
-          f.crop ? el("img",{class:"scrop",src:f.crop,alt:"Thermometer"}) : (()=>{ const im=el("img",{class:"scrop full",alt:"Fridge photo"}); im.dataset.id=fid; if(photoCache[fid]) im.src=photoCache[fid]; else io.observe(im); return im; })(),
-          el("span",{class:"stemp"+(hot?" hot":"")+(has?"":" na")}, has ? tempTxt(f) : unsure ? "?" : "—"),
-          (!has && !unsure && aiState[did]) ? el("span",{class:"sunsure"}, aiState[did]==="reading" ? "⏳ Reading the number…" : aiState[did]==="wait" ? "⏳ In line to read…" : "AI busy — trying again in 1 min") :
-          (!has && !unsure && f.ai==="none") ? el("span",{class:"sunsure"},"AI can't read it — tap ✎ to type it") :
-          unsure ? el("span",{class:"sunsure"},"AI not sure"+(f.reads&&f.reads.length?": "+f.reads.map(x=>x+"°").join(" / "):"")) : f.manual ? el("span",{class:"sunsure"},"✎ set by "+(f.by||"admin")) : null),
-        (isAdmin || isOwner) ? el("div",{class:"sact"},
-          ...(isAdmin ? picks.map(v=>el("button",{class:"tbtn pick",onclick:()=>setTemp(v)},v+"° ✓")) : []),
-          isAdmin ? el("button",{class:"tbtn"+(unsure?" pri":""),onclick:fix},unsure?"✎ Other":(has?"✎":"✎ Type it")) : null,
-          (isAdmin && has && !f.manual) ? el("button",{class:"tbtn ok",title:"The AI read it right",onclick:()=>setTemp(f.temp)},"✓") : null,
-          (isAdmin && (!has || !f.crop || unsure)) ? el("button",{class:"tbtn",onclick:()=>{ longToast("Reading… wait a few seconds"); aiFridge(did, null, fid, true, msg=>longToast(msg)); }},"↻ Read") : null,
-          isOwner ? el("button",{class:"tbtn danger","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"Reset") : null) : null);
+          (()=>{ const im=el("img",{class:"sphoto",alt:"Fridge photo"});
+            if(Array.isArray(f.box)){ if(zoomCache[fid]) im.src=zoomCache[fid]; else zoomImg(fid,f.box).then(u=>{ if(u) im.src=u; }).catch(()=>{}); im.classList.add("zoomed"); return im; }
+            if(f.box===undefined) locateBox(did,fid);
+            im.dataset.id=fid; if(photoCache[fid]) im.src=photoCache[fid]; else io.observe(im); return im; })()),
+        isOwner ? el("div",{class:"sact"}, el("button",{class:"tbtn danger","aria-label":"Reset photo",onclick:()=>resetFridge(d,date,sh)},"Reset")) : null);
     };
     let nA=0,nP=0,nMiss=0,nHot=0;
     act.forEach(d=>{
@@ -1446,19 +1478,20 @@ function renderToday(){
       rows.append(el("div",{class:"drc"+(miss?" miss":"")+(hot?" hot":"")},
         el("div",{class:"chead"},
           el("button",{class:"dn",onclick:()=>{ tSel=d.id; renderToday(); window.scrollTo(0,0); }}, avatar(d,"s"),
-            el("span",{class:"dnm"}, d.name, el("span",{class:"dflags"}, hot ? el("span",{class:"flag hot"},"🌡️ Above "+HOT_C+"°C") : null, unsure ? el("span",{class:"flag chk"},"❓ Check temp") : null, miss ? el("span",{class:"flag miss"},"📷 Missing") : null, warnBadge(d)))),
+            el("span",{class:"dnm"}, d.name, el("span",{class:"dflags"}, hot ? el("span",{class:"flag hot"},"🌡️ Above "+HOT_C+"°C") : null, (AI_ON && unsure) ? el("span",{class:"flag chk"},"❓ Check temp") : null, miss ? el("span",{class:"flag miss"},"📷 Missing") : null, warnBadge(d)))),
           zs),
         el("div",{class:"shifts"}, tile(d,"am"), tile(d,"pm"))));
     });
     const st=(n,l,c)=>el("div",{class:"stat "+(c||"")}, el("b",null,n), el("span",null,l));
     $("#tZoneBar").replaceChildren(zoneEdit
       ? el("div",{class:"zbar on"}, el("span",null,"Tap a driver's zone to change it"), el("button",{class:"zdone",onclick:()=>{ zoneEdit=false; renderToday(); }},"Done ✓"))
-      : el("div",{class:"zbar"}, isOwner ? el("button",{class:"zopen",onclick:recheckAll},"↻ Re-check all photos") : null, el("button",{class:"zopen",onclick:()=>{ zoneEdit=true; renderToday(); }},"⇄ Change zones")));
+      : el("div",{class:"zbar"}, (isOwner && AI_ON) ? el("button",{class:"zopen",onclick:recheckAll},"↻ Re-check all photos") : null, el("button",{class:"zopen",onclick:()=>{ zoneEdit=true; renderToday(); }},"⇄ Change zones")));
     { const sc=aiScore(), nEx=(aiLearn.ex||[]).length;
-      $("#tLearn").replaceChildren(el("span",null,"🧠 AI learning: "+nEx+" example"+(nEx===1?"":"s")+" saved"+(sc?" · right "+sc.right+" of last "+sc.n+" ("+Math.round(sc.right*100/sc.n)+"%)":" · tap ✓ when right, ✎ when wrong"))); }
+      if(!AI_ON) $("#tLearn").replaceChildren(); else $("#tLearn").replaceChildren(el("span",null,"🧠 AI learning: "+nEx+" example"+(nEx===1?"":"s")+" saved"+(sc?" · right "+sc.right+" of last "+sc.n+" ("+Math.round(sc.right*100/sc.n)+"%)":" · tap ✓ when right, ✎ when wrong"))); }
     $("#tStats").replaceChildren(
       st(nA+"/"+act.length,"Dawn photos"), st(nP+"/"+act.length,"Late AM photos"),
-      st(String(nMiss),"Missing", nMiss?"bad":""), st(String(nHot),"Above "+HOT_C+"°C", nHot?"hot":""));
+      st(String(nMiss),"Missing", nMiss?"bad":""), ...(AI_ON ? [st(String(nHot),"Above "+HOT_C+"°C", nHot?"hot":"")] : []));
+    $("#tStats").classList.toggle("three", !AI_ON);
     const off=drivers.length-act.length;
     $("#tOff").textContent = off ? off+" off-duty account"+(off>1?"s":"")+" hidden. Manage them in Accounts." : "";
     return;
